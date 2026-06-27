@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D 透明軟管空間佈置模擬器 (全功能錄影存檔版)</title>
+    <title>3D 透明軟管空間佈置模擬器 (火車出站防撞版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -58,7 +58,6 @@
             max-height: 52px; 
         }
 
-        /* 面板頂部 Bar */
         .panel-header {
             background: #222;
             padding: 10px 12px;
@@ -81,7 +80,6 @@
             flex-shrink: 0;
         }
 
-        /* 頂部按鈕群組 */
         .header-btn-group {
             display: flex;
             gap: 6px;
@@ -103,7 +101,6 @@
             height: 32px;
         }
 
-        /* 頂端並列的特製滾球鍵 */
         .header-drop-ball-btn {
             background: #228be6;
             color: #fff;
@@ -128,7 +125,6 @@
             overflow-y: auto;
         }
 
-        /* 編輯模式功能特製區 */
         .control-mode-box {
             background: rgba(35, 35, 35, 0.9);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -165,7 +161,6 @@
             box-shadow: 0 0 6px rgba(230, 126, 34, 0.5);
         }
 
-        /* 滾球特製客製化設定區 */
         .sim-settings-box {
             background: rgba(30, 30, 30, 0.85);
             border: 1px solid rgba(77, 171, 247, 0.3);
@@ -200,7 +195,6 @@
             width: 130px;
         }
         
-        /* 存檔管理小區 */
         .archive-list-box {
             margin-top: 6px;
             max-height: 110px;
@@ -228,9 +222,7 @@
             cursor: pointer;
             font-weight: bold;
         }
-        .archive-load-btn:active { background: #1c7ed6; }
 
-        /* 長度控制特製區 */
         .control-slider-box {
             background: rgba(40, 40, 40, 0.95);
             border: 1px solid #4dabf7;
@@ -329,7 +321,6 @@
         }
         .status-badge.simulate { background: #2ecc71; }
 
-        /* 自訂文字訊息輸入設定小區 */
         .custom-text-box {
             background: rgba(35, 35, 35, 0.9);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -350,14 +341,13 @@
             user-select: text; 
         }
 
-        /* 底部中央半透明動態訊息彈窗 */
         #bottom-message-toast {
             position: absolute;
             bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
-            background: rgba(20, 20, 20, 0.82);
+            background: rgba(20, 20, 20, 0.85);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -368,7 +358,7 @@
             font-size: 14px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             text-align: center;
-            pointer-events: none;
+            pointer-events: none; /* 完全穿透觸控，保證終點狀態下可自由用手指控制 3D 畫面 */
             transition: opacity 0.3s, transform 0.3s;
             opacity: 0;
         }
@@ -381,7 +371,7 @@
 
     <div id="canvas-container"></div>
 
-    <div id="bottom-message-toast">球已順利抵達終點！</div>
+    <div id="bottom-message-toast">訊息列車已抵達終點！</div>
 
     <div class="ui-panel" id="movable-panel">
         <div class="panel-header" id="panel-drag-handle">
@@ -391,26 +381,25 @@
             </div>
             
             <div class="header-btn-group">
-                <button class="header-drop-ball-btn hidden" id="btn-drop-ball">放網球 / 滾球</button>
+                <button class="header-drop-ball-btn hidden" id="btn-drop-ball">發射文字訊息列車</button>
                 <button class="toggle-collapse-btn" id="btn-collapse">收合 [-]</button>
             </div>
         </div>
         
         <div class="panel-content">
             <div id="setup-instructions" class="instructions">
-                <b>【3D 空間直覺手勢指南】</b><br>
-                * <b>點選外部區域</b>：展開狀態下點選外面會自動收合。<br>
-                * <b>自動載入</b>：網頁開啟時會自動恢復上次儲存的歷史路徑。
+                <b>【3D 空間文字火車指南】</b><br>
+                * 請在下方輸入字串，文字會像火車一樣完美貼合並隨管線曲折傾斜前進。
             </div>
 
             <div id="sim-instructions" class="instructions hidden">
-                * <b>⚡ 已支援「路徑多重存檔」與「實時滾球高畫質錄影」！</b><br>
-                * 點選「啟動錄影」後再點選放球，完成後即可生成影片下載。
+                * <b>⚡ 點選「發射文字訊息列車」，字體側面會與軟管截面保持 90 度貼軌滑行！</b><br>
+                * <b>字抵達終點後，畫面立體空間仍可以手指任意縮放、擴張與旋轉觀察。</b>
             </div>
 
             <div class="custom-text-box setup-ctrl">
-                <div class="mode-box-title">自訂抵達終點提示文字：</div>
-                <input type="text" id="input-toast-text" class="custom-text-input" value="恭喜！滾球已順利穿過透明軟管！">
+                <div class="mode-box-title">輸入管道內滑行文字：</div>
+                <input type="text" id="input-toast-text" class="custom-text-input" value="TAIWAN 🚀 TRAIN">
             </div>
 
             <div class="control-mode-box setup-ctrl" id="move-mode-section">
@@ -427,7 +416,7 @@
                     <button id="btn-toggle-tube-visible" class="mode-sub-btn active" style="flex:none; width:130px; padding:6px;">顯示軟管</button>
                 </div>
                 <div class="setting-row">
-                    <span class="setting-label">球經過路徑色彩：</span>
+                    <span class="setting-label">列車軌跡路徑色彩：</span>
                     <select id="select-trail-color" class="custom-select">
                         <option value="none" selected>透明 (預設)</option>
                         <option value="green">螢光綠 (Neon Green)</option>
@@ -441,8 +430,7 @@
                         <span class="setting-label">目前軌道路徑：</span>
                         <button id="btn-save-archive" class="mode-sub-btn" style="flex:none; width:130px; padding:4px; background:#2b8a3e; border-color:#2b8a3e; color:#fff;">儲存此路徑</button>
                     </div>
-                    <div class="archive-list-box" id="archive-list-container">
-                        </div>
+                    <div class="archive-list-box" id="archive-list-container"></div>
                 </div>
             </div>
 
@@ -456,12 +444,12 @@
 
             <div class="btn-group">
                 <button id="btn-toggle-record" class="menu-btn danger sim-ctrl hidden">🎥 啟動模擬錄影</button>
+                <button id="btn-follow-ball" class="menu-btn sim-ctrl hidden">鏡頭跟拍火車：關閉</button>
+                <button id="btn-rearrange" class="menu-btn sim-ctrl hidden">再佈置 (返回調整)</button>
+
                 <button id="btn-reset-view" class="menu-btn">一鍵恢復起始視角</button>
                 <button id="btn-add-segment" class="menu-btn primary setup-ctrl">接續下一段軟管</button>
                 <button id="btn-complete" class="menu-btn success setup-ctrl">完成佈置</button>
-                
-                <button id="btn-follow-ball" class="menu-btn sim-ctrl hidden">鏡頭跟拍球：關閉</button>
-                <button id="btn-rearrange" class="menu-btn sim-ctrl hidden">再佈置 (返回調整)</button>
             </div>
         </div>
     </div>
@@ -482,7 +470,7 @@
 
         let currentAngleOffsetOffset = 0; 
 
-        let physicsBall = null;
+        let trainCars = [];          
         let ballProgress = 0;        
         let ballVelocity = 0;        
         let isSimulating = false;    
@@ -574,14 +562,11 @@
                 orbitControls.enabled = !event.value; 
             });
 
-            // 核心修改點：優先檢查並加載最後一次儲存的歷史存檔路徑
             const archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
             if (archives.length > 0) {
-                // 自動取最後一個存檔（最新儲存的那組）
                 const lastSavedArchive = archives[archives.length - 1];
                 loadPathArchivePoints(lastSavedArchive);
             } else {
-                // 若完全沒有歷史數據，則建立預設三點
                 initFirstTubePoints();
             }
 
@@ -625,7 +610,6 @@
             setPipeEditMode('single');
         }
 
-        // 高相容的底層路徑裝載函數
         function loadPathArchivePoints(targetArchive) {
             controlPoints.forEach(p => {
                 if(transformControls.object === p) transformControls.detach();
@@ -793,19 +777,17 @@
             const tubeMaterial = new THREE.MeshPhysicalMaterial({
                 color: 0xffffff,
                 transparent: true,
-                opacity: 0.45,
-                roughness: 0.05,
-                metalness: 0.1,
-                transmission: 0.9, 
-                ior: 1.5,          
+                opacity: 0.12,        
+                roughness: 0.01,
+                metalness: 0.02,
+                transmission: 0.99,   
+                ior: 1.25,            
                 side: THREE.DoubleSide,
-                depthWrite: true
+                depthWrite: false     
             });
 
             tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
-            tubeMesh.castShadow = true;
             tubeMesh.receiveShadow = true;
-            
             tubeMesh.visible = tubeVisibleState;
             scene.add(tubeMesh);
         }
@@ -840,48 +822,122 @@
             setPipeEditMode('single');
         }
 
-        // --- 滾球重力與軌跡模擬機制 ---
+        function createTextTrain(fullTextString) {
+            trainCars.forEach(car => scene.remove(car));
+            trainCars = [];
 
-        function initPhysicsBall() {
-            if (physicsBall) scene.remove(physicsBall);
-            clearTrail(); 
+            const charArray = fullTextString.split('');
+            
+            charArray.forEach((char, index) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
 
-            const geometry = new THREE.SphereGeometry(0.32, 32, 32);
-            const material = new THREE.MeshStandardMaterial({
-                color: 0xffd700, 
-                roughness: 0.15,
-                metalness: 0.6
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = 'bold 90px sans-serif';
+                ctx.fillStyle = index === 0 ? '#ff3e3e' : '#ffcd00'; 
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                ctx.shadowColor = index === 0 ? '#ff0000' : '#ff8c00';
+                ctx.shadowBlur = 14;
+                ctx.fillText(char, canvas.width / 2, canvas.height / 2);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: texture, 
+                    transparent: true,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                });
+
+                const geo = new THREE.PlaneGeometry(0.85, 0.85);
+                const meshCar = new THREE.Mesh(geo, material);
+                
+                meshCar.carIndex = index;
+                meshCar.trailOffset = index * 0.028; // 標準車體間距比例
+
+                scene.add(meshCar);
+                trainCars.push(meshCar);
             });
-            physicsBall = new THREE.Mesh(geometry, material);
-            physicsBall.castShadow = true;
-            scene.add(physicsBall);
 
             ballProgress = 0;
             ballVelocity = 0;
-            
-            const startPos = tubeLineCurve.getPointAt(0);
-            physicsBall.position.copy(startPos);
-            
+            updateTrainPhysicsPositions();
+        }
+
+        // 核心修改點：重構防擠壓堆疊停靠算法，確保任何進度下第一與第二字都不重疊
+        function updateTrainPhysicsPositions() {
+            if (trainCars.length === 0 || !tubeLineCurve) return;
+
+            trainCars.forEach(car => {
+                // 如果車頭超出出口(Progress > 1)，車頭直接鎖定在終點 1.0
+                let headProgress = ballProgress;
+                if (headProgress > 1) headProgress = 1;
+
+                // 後方車廂進度依據頭部錨點扣除相對間距，不受火車頭溢出的進度影響
+                let currentCarProgress = headProgress - car.trailOffset;
+                
+                if (currentCarProgress < 0) currentCarProgress = 0;
+                if (currentCarProgress > 1) currentCarProgress = 1;
+
+                const pathPosition = tubeLineCurve.getPointAt(currentCarProgress);
+                car.position.copy(pathPosition);
+
+                const tangent = tubeLineCurve.getTangentAt(currentCarProgress).normalize();
+                
+                let upVec = new THREE.Vector3(0, 1, 0);
+                if (Math.abs(tangent.dot(upVec)) > 0.99) {
+                    upVec.set(0, 0, 1); 
+                }
+                const binormal = new THREE.Vector3().crossVectors(tangent, upVec).normalize();
+                const normal = new THREE.Vector3().crossVectors(binormal, tangent).normalize();
+
+                const m = new THREE.Matrix4().makeBasis(binormal, normal, tangent);
+                car.quaternion.setFromRotationMatrix(m);
+                
+                if (car.carIndex === 0) {
+                    car.scale.set(1.15, 1.15, 1.15); 
+                }
+            });
+        }
+
+        function initPhysicsBall() {
+            const currentMessage = document.getElementById('input-toast-text').value;
+            createTextTrain(currentMessage);
+            clearTrail(); 
             document.getElementById('bottom-message-toast').classList.remove('show');
         }
 
         function updateTrailGeometry() {
-            if (selectedTrailColor === 'none' || ballProgress <= 0.005) {
+            if (selectedTrailColor === 'none' || trainCars.length === 0 || ballProgress <= 0.002) {
+                clearTrail();
+                return;
+            }
+
+            const lastCar = trainCars[trainCars.length - 1];
+            // 軌跡終點錨定在最後一節車身實際進度
+            let headProgress = ballProgress > 1 ? 1 : ballProgress;
+            const trailEndProgress = headProgress - lastCar.trailOffset;
+
+            if (trailEndProgress <= 0.005) {
                 clearTrail();
                 return;
             }
 
             if (trailMesh) scene.remove(trailMesh);
 
-            const segmentsCount = Math.max(2, Math.floor(ballProgress * 100));
+            const segmentsCount = Math.max(2, Math.floor(trailEndProgress * 100));
             let trailPoints = [];
             for (let i = 0; i <= segmentsCount; i++) {
-                const t = (i / segmentsCount) * ballProgress;
+                const t = (i / segmentsCount) * trailEndProgress;
                 trailPoints.push(tubeLineCurve.getPointAt(t));
             }
 
             const trailCurve = new THREE.CatmullRomCurve3(trailPoints);
-            const trailGeo = new THREE.TubeGeometry(trailCurve, segmentsCount * 2, 0.36, 16, false);
+            const trailGeo = new THREE.TubeGeometry(trailCurve, segmentsCount * 2, 0.35, 16, false);
 
             let colorHex = 0xffffff;
             if (selectedTrailColor === 'green') colorHex = 0x39ff14;
@@ -894,7 +950,7 @@
                 emissive: colorHex,
                 emissiveIntensity: 1.8, 
                 transparent: true,
-                opacity: 0.75,
+                opacity: 0.7,
                 roughness: 0.2
             });
 
@@ -910,10 +966,10 @@
         }
 
         function updateBallPhysics(deltaTime) {
-            if (!isSimulating || !tubeLineCurve || !physicsBall) return;
+            if (!isSimulating || !tubeLineCurve || trainCars.length === 0) return;
             if (deltaTime > 0.05) deltaTime = 0.05; 
 
-            const tangent = tubeLineCurve.getTangentAt(ballProgress).normalize();
+            const tangent = tubeLineCurve.getTangentAt(Math.min(1, ballProgress)).normalize();
             const gravityY = -9.8;
             const acceleration = tangent.y * gravityY;
 
@@ -926,15 +982,17 @@
             
             ballProgress += deltaProgress;
 
+            // 當火車頭自身到達終點(Progress = 1)時即刻平穩剎車停靠
             if (ballProgress >= 1) {
                 ballProgress = 1;
                 ballVelocity = 0;
                 isSimulating = false;
                 if (isFollowingBall) toggleFollowBall(false); 
                 
+                // 觸發底部提示欄，此時 pointer-events 設為 none，手指擴張與縮放 3D 畫面功能百分之百流暢運作
                 const toastText = document.getElementById('input-toast-text').value;
                 const toastEl = document.getElementById('bottom-message-toast');
-                toastEl.innerText = toastText;
+                toastEl.innerText = "🚂 文字列車「" + toastText + "」已安全到站停靠！";
                 toastEl.classList.add('show');
 
                 if (isRecording) {
@@ -945,13 +1003,11 @@
                 ballVelocity = 0;
             }
 
-            const newPos = tubeLineCurve.getPointAt(ballProgress);
-            physicsBall.position.copy(newPos);
-
+            updateTrainPhysicsPositions();
             updateTrailGeometry();
 
-            if (isFollowingBall) {
-                orbitControls.target.copy(physicsBall.position);
+            if (isFollowingBall && trainCars[0]) {
+                orbitControls.target.copy(trainCars[0].position);
             }
         }
 
@@ -960,13 +1016,13 @@
             const btn = document.getElementById('btn-follow-ball');
             
             if (isFollowingBall) {
-                btn.innerText = "鏡頭跟拍球：開啟";
+                btn.innerText = "鏡頭跟拍火車：開啟";
                 btn.classList.add('toggle-active');
             } else {
-                btn.innerText = "鏡頭跟拍球：關閉";
+                btn.innerText = "鏡頭跟拍火車：關閉";
                 btn.classList.remove('toggle-active');
-                if (physicsBall) {
-                    orbitControls.target.copy(physicsBall.position);
+                if (trainCars[0]) {
+                    orbitControls.target.copy(trainCars[0].position);
                 }
             }
         }
@@ -1016,12 +1072,10 @@
             if (!target) return;
             
             loadPathArchivePoints(target);
-            
-            // 配合編輯/模擬模式顯隱
             controlPoints.forEach(p => p.visible = (currentMode === 'setup'));
             
             const toastEl = document.getElementById('bottom-message-toast');
-            toastEl.innerText = "成功載入所選的歷史軌道路徑！";
+            toastEl.innerText = "成功載入歷史軌道路徑！";
             toastEl.classList.add('show');
             setTimeout(() => toastEl.classList.remove('show'), 2000);
         };
@@ -1059,7 +1113,7 @@
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                a.download = `軟管滾球模擬錄影_${Date.now()}.webm`;
+                a.download = `3D文字火車貼軌錄影_${Date.now()}.webm`;
                 document.body.appendChild(a);
                 a.click();
                 
@@ -1073,7 +1127,7 @@
             isRecording = true;
             
             const btn = document.getElementById('btn-toggle-record');
-            btn.innerText = "🛑 正在錄影中 (球到終點自動下載)";
+            btn.innerText = "🛑 正在錄影中 (火車到站自動下載)";
             btn.classList.add('recording-active');
         }
 
@@ -1087,9 +1141,7 @@
             btn.classList.remove('recording-active');
         }
 
-
         // --- UI 面板控制事件 ---
-
         function makePanelMovable() {
             const panel = document.getElementById('movable-panel');
             const handle = document.getElementById('panel-drag-handle');
@@ -1187,7 +1239,7 @@
             const trailSelect = document.getElementById('select-trail-color');
             trailSelect.addEventListener('change', (e) => {
                 selectedTrailColor = trailSelect.value;
-                if (physicsBall && isSimulating) {
+                if (trainCars.length > 0 && isSimulating) {
                     updateTrailGeometry();
                 } else {
                     clearTrail();
@@ -1234,6 +1286,7 @@
                 addTubeSegment();
             }, false);
 
+            // 完成佈置
             document.getElementById('btn-complete').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 transformControls.detach(); 
@@ -1270,6 +1323,7 @@
                 toggleFollowBall();
             }, false);
 
+            // 返回再佈置
             document.getElementById('btn-rearrange').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 currentMode = 'setup';
@@ -1278,10 +1332,8 @@
                 clearTrail();
                 stopRecordingCanvas();
                 
-                if (physicsBall) {
-                    scene.remove(physicsBall);
-                    physicsBall = null;
-                }
+                trainCars.forEach(car => scene.remove(car));
+                trainCars = [];
 
                 tubeVisibleState = true;
                 if (tubeMesh) tubeMesh.visible = true;
