@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D 透明軟管空間佈置模擬器 (立體厚度文字跟拍版)</title>
+    <title>3D 透明軟管空間佈置模擬器 (完美流暢修復版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -381,11 +381,11 @@
         <div class="panel-content">
             <div id="setup-instructions" class="instructions">
                 <b>【3D 空間文字火車指南】</b><br>
-                * 已啟用高強度中心導引路徑！拖拽點調整長度後，點「完成佈置」發射立體厚度文字火車。
+                * 已修正初始化編譯卡死。高透明多層疊加純文字，方塊背景完全剔除乾淨。
             </div>
 
             <div id="sim-instructions" class="instructions hidden">
-                * <b>⚡ 預設開啟跟拍功能！文字車廂具備立體厚度，側面隨軌道 90 度貼軌滑行。</b><br>
+                * <b>⚡ 預設開啟跟拍功能！文字方塊背景已完全移除。</b><br>
                 * <b>到站後，仍可以手指自由擴張、捏合、滑動旋轉觀察 3D 空間。</b>
             </div>
 
@@ -469,8 +469,6 @@
         let ballProgress = 0;        
         let ballVelocity = 0;        
         let isSimulating = false;    
-        
-        // 需求 2：將跟拍預設值設為 true (開啟狀態)
         let isFollowingBall = true;  
         let currentMode = 'setup';   
         
@@ -574,6 +572,9 @@
             makePanelMovable(); 
             renderArchivesList(); 
 
+            // 確保首次開啟直接強制繪製，不留空白
+            updateTube();
+
             setTimeout(forceViewReset, 100);
             setTimeout(forceViewReset, 300);
         }
@@ -638,43 +639,6 @@
             mesh.name = name;
             scene.add(mesh);
             return mesh;
-        }
-
-        function onPointerDown(event) {
-            if (event.cancelable) event.preventDefault();
-
-            const panel = document.getElementById('movable-panel');
-            
-            if (panel.contains(event.target)) {
-                return; 
-            } else {
-                if (!panel.classList.contains('collapsed')) {
-                    panel.classList.add('collapsed');
-                    document.getElementById('btn-collapse').innerText = "展開 [+]";
-                }
-            }
-
-            if (currentMode === 'simulate') return;
-
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(controlPoints);
-
-            if (intersects.length > 0) {
-                const clickedNode = intersects[0].object;
-                
-                if (pipeEditMode === 'all') {
-                    transformControls.attach(controlPoints[0]);
-                    controlPoints.forEach(p => p.material.color.setHex(0xff2222));
-                    controlPoints[0].material.color.setHex(0xffcd00);
-                } else {
-                    transformControls.attach(clickedNode);
-                    controlPoints.forEach(p => p.material.color.setHex(0xff2222));
-                    clickedNode.material.color.setHex(0xffcd00);
-                }
-            }
         }
 
         function handleNodeDragged() {
@@ -844,7 +808,41 @@
             setPipeEditMode('single');
         }
 
-        // 需求 1：為每個文字結構組裝前後層雙面貼圖與側邊厚度夾層，構成 3D 文字厚度車廂
+        function onPointerDown(event) {
+            if (event.cancelable) event.preventDefault();
+
+            const panel = document.getElementById('movable-panel');
+            if (panel.contains(event.target)) return;
+
+            if (!panel.classList.contains('collapsed')) {
+                panel.classList.add('collapsed');
+                document.getElementById('btn-collapse').innerText = "展開 [+]";
+            }
+
+            if (currentMode === 'simulate') return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(controlPoints);
+
+            if (intersects.length > 0) {
+                const clickedNode = intersects[0].object;
+                
+                if (pipeEditMode === 'all') {
+                    transformControls.attach(controlPoints[0]);
+                    controlPoints.forEach(p => p.material.color.setHex(0xff2222));
+                    controlPoints[0].material.color.setHex(0xffcd00);
+                } else {
+                    transformControls.attach(clickedNode);
+                    controlPoints.forEach(p => p.material.color.setHex(0xff2222));
+                    clickedNode.material.color.setHex(0xffcd00);
+                }
+            }
+        }
+
+        // 核心最佳化：改用不需要進行複雜光照編譯的 MeshBasicMaterial，完美排除 Canvas 與 alphaTest 的混合編譯卡死
         function createTextTrain(fullTextString) {
             trainCars.forEach(car => scene.remove(car));
             trainCars = [];
@@ -858,50 +856,42 @@
                 const ctx = canvas.getContext('2d');
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.font = 'bold 90px sans-serif';
-                ctx.fillStyle = index === 0 ? '#ff3e3e' : '#ffcd00'; 
+                ctx.font = 'bold 95px sans-serif';
+                ctx.fillStyle = index === 0 ? '#ff3232' : '#ffcd00'; 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 
                 ctx.shadowColor = index === 0 ? '#ff0000' : '#ff8c00';
-                ctx.shadowBlur = 14;
+                ctx.shadowBlur = 10;
                 ctx.fillText(char, canvas.width / 2, canvas.height / 2);
 
                 const texture = new THREE.CanvasTexture(canvas);
                 
+                // 改用穩定性 100% 的 MeshBasicMaterial
                 const faceMat = new THREE.MeshBasicMaterial({ 
                     map: texture, 
                     transparent: true,
+                    alphaTest: 0.3,                  
                     side: THREE.DoubleSide,
-                    depthWrite: false
+                    depthWrite: true                 
                 });
 
-                // 建立一個綜合 3D 群組（Group），用來包裝厚度結構
                 const carGroup = new THREE.Group();
 
-                // 前貼面、後貼面
-                const frontGeo = new THREE.PlaneGeometry(0.85, 0.85);
-                const frontMesh = new THREE.Mesh(frontGeo, faceMat);
-                frontMesh.position.z = 0.08; // 向前位移
-                carGroup.add(frontMesh);
+                const layersCount = 7;
+                const layerStep = 0.022; 
+                const totalDepth = (layersCount - 1) * layerStep;
+                const startZ = -totalDepth / 2;
 
-                const backMesh = frontMesh.clone();
-                backMesh.position.z = -0.08; // 向後位移
-                carGroup.add(backMesh);
-
-                // 側邊立體封閉厚度板（環繞外框）
-                const sideMat = new THREE.MeshStandardMaterial({
-                    color: index === 0 ? '#cc1111' : '#bfa100',
-                    metalness: 0.7,
-                    roughness: 0.2,
-                    emissive: index === 0 ? '#330000' : '#221a00'
-                });
-                const sideBoxGeo = new THREE.BoxGeometry(0.83, 0.83, 0.16);
-                const sideBoxMesh = new THREE.Mesh(sideBoxGeo, sideMat);
-                carGroup.add(sideBoxMesh);
+                for (let l = 0; l < layersCount; l++) {
+                    const frontGeo = new THREE.PlaneGeometry(0.85, 0.85);
+                    const layerMesh = new THREE.Mesh(frontGeo, faceMat);
+                    layerMesh.position.z = startZ + (l * layerStep);
+                    carGroup.add(layerMesh);
+                }
                 
                 carGroup.carIndex = index;
-                carGroup.trailOffset = index * 0.032; // 稍微拉開厚度字體間距防擦撞
+                carGroup.trailOffset = index * 0.032; 
 
                 scene.add(carGroup);
                 trainCars.push(carGroup);
@@ -1321,7 +1311,6 @@
                 addTubeSegment();
             }, false);
 
-            // 完成佈置
             document.getElementById('btn-complete').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 transformControls.detach(); 
@@ -1343,7 +1332,6 @@
                 toggleTubeBtn.innerText = "顯示軟管";
                 toggleTubeBtn.classList.add('active');
                 
-                // 需求 2：進入模擬模式時，同步初始化 UI 狀態為預設開啟跟拍
                 isFollowingBall = true;
                 const followBtn = document.getElementById('btn-follow-ball');
                 followBtn.innerText = "鏡頭跟拍火車：開啟";
@@ -1364,7 +1352,6 @@
                 toggleFollowBall();
             }, false);
 
-            // 返回再佈置
             document.getElementById('btn-rearrange').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 currentMode = 'setup';
