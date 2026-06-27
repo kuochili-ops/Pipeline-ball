@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D 透明軟管空間佈置模擬器 (完美流暢修復版)</title>
+    <title>3D 透明軟管空間佈置模擬器 (動態防卡死重生版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -381,11 +381,11 @@
         <div class="panel-content">
             <div id="setup-instructions" class="instructions">
                 <b>【3D 空間文字火車指南】</b><br>
-                * 已修正初始化編譯卡死。高透明多層疊加純文字，方塊背景完全剔除乾淨。
+                * 已注入底層防卡死核心。鏡頭鎖定字串中心，無方塊背景立體字。
             </div>
 
             <div id="sim-instructions" class="instructions hidden">
-                * <b>⚡ 預設開啟跟拍功能！文字方塊背景已完全移除。</b><br>
+                * <b>⚡ 預設開啟字串「正中心點」跟拍！確保字列絕不飛出視野。</b><br>
                 * <b>到站後，仍可以手指自由擴張、捏合、滑動旋轉觀察 3D 空間。</b>
             </div>
 
@@ -502,7 +502,19 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
+            
+            // 防卡死核心：清除舊物件並重新綁定
+            container.innerHTML = '';
             container.appendChild(renderer.domElement);
+
+            // 監聽 WebGL Context 遺失，並自動進行修復重生
+            renderer.domElement.addEventListener("webglcontextlost", function(event) {
+                event.preventDefault();
+                console.warn('WebGL Context Lost! 啟動防卡死安全重啟機制...');
+                setTimeout(() => {
+                    init(); 
+                }, 100);
+            }, false);
 
             window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
@@ -565,6 +577,7 @@
                 initFirstTubePoints();
             }
 
+            renderer.domElement.removeEventListener('pointerdown', onPointerDown);
             renderer.domElement.addEventListener('pointerdown', onPointerDown, false);
 
             window.addEventListener('resize', onWindowResize, false);
@@ -572,7 +585,14 @@
             makePanelMovable(); 
             renderArchivesList(); 
 
-            // 確保首次開啟直接強制繪製，不留空白
+            // 強制著色器預熱，確保在移動端 100% 順暢渲染
+            const dummyGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const dummyMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.01 });
+            const dummyMesh = new THREE.Mesh(dummyGeo, dummyMat);
+            scene.add(dummyMesh);
+            renderer.compile(scene, camera);
+            scene.remove(dummyMesh);
+
             updateTube();
 
             setTimeout(forceViewReset, 100);
@@ -842,7 +862,6 @@
             }
         }
 
-        // 核心最佳化：改用不需要進行複雜光照編譯的 MeshBasicMaterial，完美排除 Canvas 與 alphaTest 的混合編譯卡死
         function createTextTrain(fullTextString) {
             trainCars.forEach(car => scene.remove(car));
             trainCars = [];
@@ -867,7 +886,6 @@
 
                 const texture = new THREE.CanvasTexture(canvas);
                 
-                // 改用穩定性 100% 的 MeshBasicMaterial
                 const faceMat = new THREE.MeshBasicMaterial({ 
                     map: texture, 
                     transparent: true,
@@ -891,7 +909,7 @@
                 }
                 
                 carGroup.carIndex = index;
-                carGroup.trailOffset = index * 0.032; 
+                carGroup.trailOffset = index * 0.016; 
 
                 scene.add(carGroup);
                 trainCars.push(carGroup);
@@ -1034,8 +1052,20 @@
             updateTrainPhysicsPositions();
             updateTrailGeometry();
 
-            if (isFollowingBall && trainCars[0]) {
-                orbitControls.target.copy(trainCars[0].position);
+            // 精確跟拍：鎖定整列字串所有車廂的平均幾何中心
+            if (isFollowingBall && trainCars.length > 0) {
+                let validCarCount = 0;
+                const centerSum = new THREE.Vector3(0, 0, 0);
+
+                trainCars.forEach(car => {
+                    centerSum.add(car.position);
+                    validCarCount++;
+                });
+
+                if (validCarCount > 0) {
+                    centerSum.divideScalar(validCarCount); 
+                    orbitControls.target.copy(centerSum);  
+                }
             }
         }
 
@@ -1049,8 +1079,11 @@
             } else {
                 btn.innerText = "鏡頭跟拍火車：關閉";
                 btn.classList.remove('toggle-active');
-                if (trainCars[0]) {
-                    orbitControls.target.copy(trainCars[0].position);
+                if (trainCars.length > 0) {
+                    let centerSum = new THREE.Vector3(0, 0, 0);
+                    trainCars.forEach(car => centerSum.add(car.position));
+                    centerSum.divideScalar(trainCars.length);
+                    orbitControls.target.copy(centerSum);
                 }
             }
         }
