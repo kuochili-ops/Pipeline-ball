@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D 透明軟管空間佈置模擬器 (高對比清晰編輯版)</title>
+    <title>3D 透明軟管空間佈置模擬器 (立體厚度文字跟拍版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -277,6 +277,8 @@
             background: #e67e22;
             border-color: #e67e22;
             box-shadow: 0 0 8px rgba(230, 126, 34, 0.6);
+            color: #fff;
+            font-weight: bold;
         }
         
         button.menu-btn.recording-active {
@@ -371,7 +373,7 @@
             </div>
             
             <div class="header-btn-group">
-                <button class="header-drop-ball-btn hidden" id="btn-drop-ball">發射文字訊息列車</button>
+                <button class="header-drop-ball-btn hidden" id="btn-drop-ball">發射文字列車</button>
                 <button class="toggle-collapse-btn" id="btn-collapse">收合 [-]</button>
             </div>
         </div>
@@ -379,12 +381,12 @@
         <div class="panel-content">
             <div id="setup-instructions" class="instructions">
                 <b>【3D 空間文字火車指南】</b><br>
-                * <b>已啟用亮藍色霓虹軌道導引線！確保編輯時路徑百分之百清晰。</b>
+                * 已啟用高強度中心導引路徑！拖拽點調整長度後，點「完成佈置」發射立體厚度文字火車。
             </div>
 
             <div id="sim-instructions" class="instructions hidden">
-                * <b>⚡ 點選「發射文字訊息列車」，字體側面會與軟管截面保持 90 度貼軌滑行！</b><br>
-                * <b>字抵達終點後，畫面立體空間仍可以手指任意縮放、擴張與旋轉觀察。</b>
+                * <b>⚡ 預設開啟跟拍功能！文字車廂具備立體厚度，側面隨軌道 90 度貼軌滑行。</b><br>
+                * <b>到站後，仍可以手指自由擴張、捏合、滑動旋轉觀察 3D 空間。</b>
             </div>
 
             <!-- 文字訊息輸入欄位 -->
@@ -436,7 +438,7 @@
 
             <div class="btn-group">
                 <button id="btn-toggle-record" class="menu-btn danger sim-ctrl hidden">🎥 啟動模擬錄影</button>
-                <button id="btn-follow-ball" class="menu-btn sim-ctrl hidden">鏡頭跟拍火車：關閉</button>
+                <button id="btn-follow-ball" class="menu-btn sim-ctrl hidden">鏡頭跟拍火車：開啟</button>
                 <button id="btn-rearrange" class="menu-btn sim-ctrl hidden">再佈置 (返回調整)</button>
 
                 <button id="btn-reset-view" class="menu-btn">一鍵恢復起始視角</button>
@@ -459,8 +461,6 @@
         let controlPoints = [];      
         let tubeMesh = null;         
         let tubeLineCurve = null;    
-
-        // 新增：編輯模式專用的中心霓虹高對比導引軌道線
         let editGuideLineMesh = null; 
 
         let currentAngleOffsetOffset = 0; 
@@ -469,7 +469,9 @@
         let ballProgress = 0;        
         let ballVelocity = 0;        
         let isSimulating = false;    
-        let isFollowingBall = false; 
+        
+        // 需求 2：將跟拍預設值設為 true (開啟狀態)
+        let isFollowingBall = true;  
         let currentMode = 'setup';   
         
         let pipeEditMode = 'single'; 
@@ -759,7 +761,6 @@
             updateTube();
         }
 
-        // 核心修改點：依據當前模式（編輯 vs 模擬），動態重構軟管高對比質感與霓虹中心引導軌道
         function updateTube() {
             if (controlPoints.length < 2) return;
             const points = controlPoints.map(mesh => mesh.position);
@@ -767,7 +768,6 @@
             tubeLineCurve = new THREE.CatmullRomCurve3(points);
             tubeLineCurve.curveType = 'centripetal'; 
 
-            // 清理舊軟管與引導軌道
             if (tubeMesh) scene.remove(tubeMesh);
             if (editGuideLineMesh) scene.remove(editGuideLineMesh);
 
@@ -775,7 +775,6 @@
             let tubeMaterial;
 
             if (currentMode === 'setup') {
-                // 【佈置模式】採用高對比、半透明磨砂白質感，確保拉扯編輯時管體輪廓極致顯眼
                 tubeMaterial = new THREE.MeshStandardMaterial({
                     color: 0xdddddd,
                     transparent: true,
@@ -786,18 +785,16 @@
                     depthWrite: true
                 });
 
-                // 同步生成一條貫穿管道中心的「亮藍色霓虹導引軌道線」
                 const linePoints = tubeLineCurve.getPoints(100);
                 const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
                 const lineMat = new THREE.LineBasicMaterial({
-                    color: 0x00d2ff,   // 酷炫科技藍
-                    linewidth: 4       // 提高路徑清晰度
+                    color: 0x00d2ff,   
+                    linewidth: 4       
                 });
                 editGuideLineMesh = new THREE.Line(lineGeo, lineMat);
                 scene.add(editGuideLineMesh);
 
             } else {
-                // 【模擬模式】完美復原為完全透明的超透光水晶質感，讓看字完全清晰不遮擋
                 tubeMaterial = new THREE.MeshPhysicalMaterial({
                     color: 0xffffff,
                     transparent: true,
@@ -847,6 +844,7 @@
             setPipeEditMode('single');
         }
 
+        // 需求 1：為每個文字結構組裝前後層雙面貼圖與側邊厚度夾層，構成 3D 文字厚度車廂
         function createTextTrain(fullTextString) {
             trainCars.forEach(car => scene.remove(car));
             trainCars = [];
@@ -871,21 +869,42 @@
 
                 const texture = new THREE.CanvasTexture(canvas);
                 
-                const material = new THREE.MeshBasicMaterial({ 
+                const faceMat = new THREE.MeshBasicMaterial({ 
                     map: texture, 
                     transparent: true,
                     side: THREE.DoubleSide,
                     depthWrite: false
                 });
 
-                const geo = new THREE.PlaneGeometry(0.85, 0.85);
-                const meshCar = new THREE.Mesh(geo, material);
-                
-                meshCar.carIndex = index;
-                meshCar.trailOffset = index * 0.028; 
+                // 建立一個綜合 3D 群組（Group），用來包裝厚度結構
+                const carGroup = new THREE.Group();
 
-                scene.add(meshCar);
-                trainCars.push(meshCar);
+                // 前貼面、後貼面
+                const frontGeo = new THREE.PlaneGeometry(0.85, 0.85);
+                const frontMesh = new THREE.Mesh(frontGeo, faceMat);
+                frontMesh.position.z = 0.08; // 向前位移
+                carGroup.add(frontMesh);
+
+                const backMesh = frontMesh.clone();
+                backMesh.position.z = -0.08; // 向後位移
+                carGroup.add(backMesh);
+
+                // 側邊立體封閉厚度板（環繞外框）
+                const sideMat = new THREE.MeshStandardMaterial({
+                    color: index === 0 ? '#cc1111' : '#bfa100',
+                    metalness: 0.7,
+                    roughness: 0.2,
+                    emissive: index === 0 ? '#330000' : '#221a00'
+                });
+                const sideBoxGeo = new THREE.BoxGeometry(0.83, 0.83, 0.16);
+                const sideBoxMesh = new THREE.Mesh(sideBoxGeo, sideMat);
+                carGroup.add(sideBoxMesh);
+                
+                carGroup.carIndex = index;
+                carGroup.trailOffset = index * 0.032; // 稍微拉開厚度字體間距防擦撞
+
+                scene.add(carGroup);
+                trainCars.push(carGroup);
             });
 
             ballProgress = 0;
@@ -1324,9 +1343,13 @@
                 toggleTubeBtn.innerText = "顯示軟管";
                 toggleTubeBtn.classList.add('active');
                 
-                // 重構：切換模式時動態觸發軟管材質轉變與輔助軌道移除
-                updateTube();
+                // 需求 2：進入模擬模式時，同步初始化 UI 狀態為預設開啟跟拍
+                isFollowingBall = true;
+                const followBtn = document.getElementById('btn-follow-ball');
+                followBtn.innerText = "鏡頭跟拍火車：開啟";
+                followBtn.classList.add('toggle-active');
 
+                updateTube();
                 initPhysicsBall();
             }, false);
 
@@ -1368,7 +1391,6 @@
                 document.getElementById('btn-drop-ball').classList.add('hidden');
                 document.getElementById('bottom-message-toast').classList.remove('show');
                 
-                // 重構：返回佈置模式時，動態還原清晰高對比引引導軌道
                 updateTube();
 
                 orbitControls.target.set(initTarX, initTarY, initTarZ);
