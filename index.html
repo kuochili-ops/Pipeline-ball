@@ -1,1 +1,1334 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D 透明軟管空間佈置模擬器 (全功能錄影存檔版)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #141414;
+            overscroll-behavior: none; 
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* 控制面板 */
+        .ui-panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 999;
+            background: rgba(25, 25, 25, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            width: 300px;
+            overflow: hidden;
+            transition: max-height 0.25s ease-out;
+            max-height: 95vh;
+        }
+        
+        .ui-panel.collapsed {
+            max-height: 52px; 
+        }
+
+        /* 面板頂部 Bar */
+        .panel-header {
+            background: #222;
+            padding: 10px 12px;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 8px;
+            height: 52px;
+        }
+
+        .panel-title-text {
+            font-size: 13px;
+            font-weight: bold;
+            color: #4dabf7;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        /* 頂部按鈕群組 */
+        .header-btn-group {
+            display: flex;
+            gap: 6px;
+            flex: 1;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .toggle-collapse-btn {
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 6px 10px;
+            font-size: 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap;
+            height: 32px;
+        }
+
+        /* 頂端並列的特製滾球鍵 */
+        .header-drop-ball-btn {
+            background: #228be6;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            font-size: 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap;
+            height: 32px;
+            box-shadow: 0 2px 6px rgba(34, 139, 230, 0.4);
+        }
+        .header-drop-ball-btn:active {
+            background: #1c7ed6;
+            transform: scale(0.95);
+        }
+
+        .panel-content {
+            padding: 12px 14px;
+            max-height: calc(95vh - 52px);
+            overflow-y: auto;
+        }
+
+        /* 編輯模式功能特製區 */
+        .control-mode-box {
+            background: rgba(35, 35, 35, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+        .mode-box-title {
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+        .mode-btn-pair {
+            display: flex;
+            gap: 6px;
+        }
+        .mode-sub-btn {
+            flex: 1;
+            background: #333;
+            color: #ccc;
+            border: 1px solid #555;
+            padding: 8px;
+            font-size: 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .mode-sub-btn.active {
+            background: #e67e22;
+            border-color: #e67e22;
+            color: #fff;
+            box-shadow: 0 0 6px rgba(230, 126, 34, 0.5);
+        }
+
+        /* 滾球特製客製化設定區 */
+        .sim-settings-box {
+            background: rgba(30, 30, 30, 0.85);
+            border: 1px solid rgba(77, 171, 247, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            gap: 10px;
+        }
+        .setting-row:last-child {
+            margin-bottom: 0;
+        }
+        .setting-label {
+            font-size: 12px;
+            color: #e0e0e0;
+            font-weight: bold;
+        }
+        .custom-select {
+            background: #2b2b2b;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 6px 8px;
+            font-size: 12px;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+            width: 130px;
+        }
+        
+        /* 存檔管理小區 */
+        .archive-list-box {
+            margin-top: 6px;
+            max-height: 90px;
+            overflow-y: auto;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #111;
+            padding: 4px;
+        }
+        .archive-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 6px;
+            font-size: 11px;
+            border-bottom: 1px solid #222;
+        }
+        .archive-item:last-child { border-bottom: none; }
+        .archive-load-btn {
+            background: #228be6;
+            border: none;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        /* 長度控制特製區 */
+        .control-slider-box {
+            background: rgba(40, 40, 40, 0.95);
+            border: 1px solid #4dabf7;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .slider-title {
+            font-size: 12px;
+            color: #4dabf7;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .slider-container input[type=range] {
+            flex: 1;
+            accent-color: #228be6;
+            height: 28px;
+            cursor: pointer;
+        }
+        .slider-val {
+            font-size: 12px;
+            width: 45px;
+            text-align: right;
+            font-family: monospace;
+            color: #ffcd00;
+            font-weight: bold;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        button.menu-btn {
+            background: #2b2b2b;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 12px;
+            font-size: 13px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 500;
+            width: 100%;
+        }
+
+        button.menu-btn:active { transform: scale(0.98); }
+        button.menu-btn.primary { background: #228be6; border-color: #228be6; font-weight: bold; }
+        button.menu-btn.success { background: #2b8a3e; border-color: #2b8a3e; font-weight: bold; }
+        button.menu-btn.danger { background: #c92a2a; border-color: #c92a2a; font-weight: bold; }
+        
+        button.menu-btn.toggle-active {
+            background: #e67e22;
+            border-color: #e67e22;
+            box-shadow: 0 0 8px rgba(230, 126, 34, 0.6);
+        }
+        
+        button.menu-btn.recording-active {
+            background: #e03131;
+            border-color: #e03131;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        .hidden { display: none !important; }
+
+        .instructions {
+            font-size: 11px;
+            color: #bbb;
+            line-height: 1.5;
+            margin: 0 0 10px 0;
+            background: rgba(255,255,255,0.06);
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: bold;
+            background: #e67e22;
+            color: white;
+        }
+        .status-badge.simulate { background: #2ecc71; }
+
+        /* 新增：自訂文字訊息輸入設定小區 */
+        .custom-text-box {
+            background: rgba(35, 35, 35, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+        .custom-text-input {
+            width: 100%;
+            background: #222;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 6px 8px;
+            font-size: 12px;
+            border-radius: 6px;
+            outline: none;
+            -webkit-user-select: text;
+            user-select: text; /* 允許文字欄位可以點選輸入 */
+        }
+
+        /* 新增：底部中央半透明動態訊息彈窗 */
+        #bottom-message-toast {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(20, 20, 20, 0.82);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffcd00;
+            font-weight: bold;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            text-align: center;
+            pointer-events: none;
+            transition: opacity 0.3s, transform 0.3s;
+            opacity: 0;
+        }
+        #bottom-message-toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="bottom-message-toast">球已順利抵達終點！</div>
+
+    <div class="ui-panel" id="movable-panel">
+        <div class="panel-header" id="panel-drag-handle">
+            <div class="panel-title-text">
+                <span id="mode-badge" class="status-badge">佈置模式</span>
+                <span id="panel-title" style="margin-left:4px;">透明軟管</span>
+            </div>
+            
+            <div class="header-btn-group">
+                <button class="header-drop-ball-btn hidden" id="btn-drop-ball">放網球 / 滾球</button>
+                <button class="toggle-collapse-btn" id="btn-collapse">收合 [-]</button>
+            </div>
+        </div>
+        
+        <div class="panel-content">
+            <div id="setup-instructions" class="instructions">
+                <b>【3D 空間直覺手勢指南】</b><br>
+                * <b>點選外部區域</b>：展開狀態下點選外面會自動收合。<br>
+                * 可在下方自由預設小球到達終點時顯示的底部跑馬燈文字。
+            </div>
+
+            <div id="sim-instructions" class="instructions hidden">
+                * <b>⚡ 已支援「路徑多重存檔」與「實時滾球高畫質錄影」！</b><br>
+                * 點選「啟動錄影」後再點選放球，完成後即可生成影片下載。
+            </div>
+
+            <div class="custom-text-box setup-ctrl">
+                <div class="mode-box-title">自訂抵達終點提示文字：</div>
+                <input type="text" id="input-toast-text" class="custom-text-input" value="恭喜！滾球已順利穿過透明軟管！">
+            </div>
+
+            <div class="control-mode-box setup-ctrl" id="move-mode-section">
+                <div class="mode-box-title">編輯模式設定：</div>
+                <div class="mode-btn-pair">
+                    <button id="btn-mode-single" class="mode-sub-btn active">移動單一節點</button>
+                    <button id="btn-mode-all" class="mode-sub-btn">移動整組軟管</button>
+                </div>
+            </div>
+
+            <div class="sim-settings-box sim-ctrl hidden" id="sim-custom-settings">
+                <div class="setting-row">
+                    <span class="setting-label">軟管可見度：</span>
+                    <button id="btn-toggle-tube-visible" class="mode-sub-btn active" style="flex:none; width:130px; padding:6px;">顯示軟管</button>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">球經過路徑色彩：</span>
+                    <select id="select-trail-color" class="custom-select">
+                        <option value="none" selected>透明 (預設)</option>
+                        <option value="green">螢光綠 (Neon Green)</option>
+                        <option value="blue">螢光藍 (Neon Blue)</option>
+                        <option value="pink">螢光粉紅 (Neon Pink)</option>
+                        <option value="yellow">炫目金黃 (Neon Yellow)</option>
+                    </select>
+                </div>
+                <div style="border-top:1px solid #444; margin-top:8px; padding-top:8px;">
+                    <div class="setting-row">
+                        <span class="setting-label">目前軌道路徑：</span>
+                        <button id="btn-save-archive" class="mode-sub-btn" style="flex:none; width:130px; padding:4px; background:#2b8a3e; border-color:#2b8a3e; color:#fff;">儲存此路徑</button>
+                    </div>
+                    <div class="archive-list-box" id="archive-list-container">
+                        </div>
+                </div>
+            </div>
+
+            <div id="slider-box" class="control-slider-box setup-ctrl">
+                <div class="slider-title">調整當前軟管段落總長度：</div>
+                <div class="slider-container">
+                    <input type="range" id="slider-tube-length" min="3.0" max="30.0" step="0.2" value="12.0">
+                    <span class="slider-val" id="val-tube-length">12.0m</span>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button id="btn-toggle-record" class="menu-btn danger sim-ctrl hidden">🎥 啟動模擬錄影</button>
+
+                <button id="btn-reset-view" class="menu-btn">一鍵恢復起始視角</button>
+                <button id="btn-add-segment" class="menu-btn primary setup-ctrl">接續下一段軟管</button>
+                <button id="btn-complete" class="menu-btn success setup-ctrl">完成佈置</button>
+                
+                <button id="btn-follow-ball" class="menu-btn sim-ctrl hidden">鏡頭跟拍球：關閉</button>
+                <button id="btn-rearrange" class="menu-btn sim-ctrl hidden">再佈置 (返回調整)</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+
+    <script>
+        const clock = new THREE.Clock();
+
+        let scene, camera, renderer, orbitControls, transformControls;
+        const container = document.getElementById('canvas-container');
+        
+        let controlPoints = [];      
+        let tubeMesh = null;         
+        let tubeLineCurve = null;    
+
+        let currentAngleOffsetOffset = 0; 
+
+        let physicsBall = null;
+        let ballProgress = 0;        
+        let ballVelocity = 0;        
+        let isSimulating = false;    
+        let isFollowingBall = false; 
+        let currentMode = 'setup';   
+        
+        let pipeEditMode = 'single'; 
+
+        let tubeVisibleState = true;   
+        let selectedTrailColor = 'none'; 
+        let trailMesh = null;          
+
+        // 錄影相關變數
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+
+        const initCamX = 0, initCamY = 14, initCamZ = 24;
+        const initTarX = 0, initTarY = 3, initTarZ = 0;
+
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(initCamX, initCamY, initCamZ);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true }); // preserveDrawingBuffer 確保錄影不黑屏
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            window.addEventListener('contextmenu', e => e.preventDefault(), false);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight1.position.set(20, 40, 20);
+            dirLight1.castShadow = true;
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x4dabf7, 0.5);
+            dirLight2.position.set(-20, 20, -20);
+            scene.add(dirLight2);
+
+            const floorGeo = new THREE.PlaneGeometry(60, 60);
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x555555,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.4,
+                roughness: 0.5,
+                emissive: 0x111111
+            });
+            const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorMesh.rotation.x = -Math.PI / 2;
+            floorMesh.position.y = 0;
+            floorMesh.receiveShadow = true;
+            scene.add(floorMesh);
+
+            const gridHelper = new THREE.GridHelper(60, 30, 0x999999, 0x444444);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
+
+            orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+            orbitControls.enableDamping = true;
+            orbitControls.dampingFactor = 0.1;
+            orbitControls.screenSpacePanning = true; 
+            orbitControls.target.set(initTarX, initTarY, initTarZ);
+            orbitControls.update();
+
+            transformControls = new THREE.TransformControls(camera, renderer.domElement);
+            transformControls.setSize(0.75); 
+            scene.add(transformControls);
+
+            transformControls.addEventListener('change', () => {
+                if (transformControls.object) {
+                    handleNodeDragged(); 
+                }
+            });
+            transformControls.addEventListener('dragging-changed', (event) => {
+                orbitControls.enabled = !event.value; 
+            });
+
+            initFirstTubePoints();
+
+            renderer.domElement.addEventListener('pointerdown', onPointerDown, false);
+
+            window.addEventListener('resize', onWindowResize, false);
+            setupUIEvents();
+            makePanelMovable(); 
+            renderArchivesList(); // 初始化載入已儲存路徑
+
+            setTimeout(forceViewReset, 100);
+            setTimeout(forceViewReset, 300);
+        }
+
+        function forceViewReset() {
+            updateTube();
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            orbitControls.target.set(initTarX, initTarY, initTarZ);
+            orbitControls.update();
+            renderer.render(scene, camera);
+        }
+
+        function initFirstTubePoints() {
+            controlPoints.forEach(p => {
+                if(transformControls.object === p) transformControls.detach();
+                scene.remove(p);
+            });
+            
+            const p1 = createControlPoint(new THREE.Vector3(-6, 8.0, 0), "起始點");
+            const p2 = createControlPoint(new THREE.Vector3(0, 6.5, 0), "第二點"); 
+            const p3 = createControlPoint(new THREE.Vector3(6, 5.0, 0), "第三點");
+
+            controlPoints = [p1, p2, p3];
+            
+            const initialLen = p1.position.distanceTo(p3.position);
+            document.getElementById('slider-tube-length').value = initialLen.toFixed(1);
+            document.getElementById('val-tube-length').innerText = initialLen.toFixed(1) + "m";
+
+            updateTube();
+            setPipeEditMode('single');
+        }
+
+        function createControlPoint(position, name) {
+            const geometry = new THREE.SphereGeometry(0.48, 32, 32);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xff2222, 
+                roughness: 0.15,
+                metalness: 0.2,
+                emissive: 0x220000
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(position);
+            mesh.castShadow = true;
+            mesh.name = name;
+            scene.add(mesh);
+            return mesh;
+        }
+
+        function onPointerDown(event) {
+            if (event.cancelable) event.preventDefault();
+
+            const panel = document.getElementById('movable-panel');
+            
+            if (panel.contains(event.target)) {
+                return; 
+            } else {
+                if (!panel.classList.contains('collapsed')) {
+                    panel.classList.add('collapsed');
+                    document.getElementById('btn-collapse').innerText = "展開 [+]";
+                }
+            }
+
+            if (currentMode === 'simulate') return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(controlPoints);
+
+            if (intersects.length > 0) {
+                const clickedNode = intersects[0].object;
+                
+                if (pipeEditMode === 'all') {
+                    transformControls.attach(controlPoints[0]);
+                    controlPoints.forEach(p => p.material.color.setHex(0xff2222));
+                    controlPoints[0].material.color.setHex(0xffcd00);
+                } else {
+                    transformControls.attach(clickedNode);
+                    controlPoints.forEach(p => p.material.color.setHex(0xff2222));
+                    clickedNode.material.color.setHex(0xffcd00);
+                }
+            }
+        }
+
+        function handleNodeDragged() {
+            const targetObj = transformControls.object;
+            if (!targetObj) return;
+
+            const p1 = controlPoints[0]; 
+            const p2 = controlPoints[1]; 
+            const p3 = controlPoints[2]; 
+
+            if (pipeEditMode === 'all') {
+                if (!p1.lastPosition) {
+                    p1.lastPosition = p1.position.clone();
+                }
+                const deltaMove = new THREE.Vector3().subVectors(p1.position, p1.lastPosition);
+                for (let i = 1; i < controlPoints.length; i++) {
+                    controlPoints[i].position.add(deltaMove);
+                }
+                p1.lastPosition.copy(p1.position);
+            } 
+            else {
+                if (targetObj === p1) {
+                    if (!p1.lastPosition) {
+                        p1.lastPosition = p1.position.clone();
+                    }
+                    const deltaMove = new THREE.Vector3().subVectors(p1.position, p1.lastPosition);
+                    p2.position.add(deltaMove);
+                    p3.position.add(deltaMove);
+                    p1.lastPosition.copy(p1.position);
+
+                } else if (targetObj === p2) {
+                    const line13 = new THREE.Vector3().subVectors(p3.position, p1.position);
+                    const midPoint13 = new THREE.Vector3().addVectors(p1.position, p3.position).multiplyScalar(0.5);
+                    currentAngleOffsetOffset = p2.position.distanceTo(midPoint13);
+
+                } else if (targetObj === p3) {
+                    const currentLen = p1.position.distanceTo(p3.position);
+                    document.getElementById('slider-tube-length').value = currentLen.toFixed(1);
+                    document.getElementById('val-tube-length').innerText = currentLen.toFixed(1) + "m";
+                }
+            }
+
+            controlPoints.forEach(p => { if (p.position.y < 0.3) p.position.y = 0.3; });
+            if (p1) p1.lastPosition = p1.position.clone();
+
+            updateTube();
+        }
+
+        function setPipeEditMode(mode) {
+            pipeEditMode = mode;
+            const btnSingle = document.getElementById('btn-mode-single');
+            const btnAll = document.getElementById('btn-mode-all');
+
+            if (mode === 'all') {
+                btnAll.classList.add('active');
+                btnSingle.classList.remove('active');
+                if (controlPoints.length > 0) {
+                    transformControls.attach(controlPoints[0]);
+                    controlPoints.forEach(p => p.material.color.setHex(0xff2222));
+                    controlPoints[0].material.color.setHex(0xffcd00);
+                }
+            } else {
+                btnSingle.classList.add('active');
+                btnAll.classList.remove('active');
+            }
+        }
+
+        function handleTubeLengthSlider(newLength) {
+            const p1 = controlPoints[0];
+            const p2 = controlPoints[1];
+            const p3 = controlPoints[2];
+
+            const dir13 = new THREE.Vector3().subVectors(p3.position, p1.position).normalize();
+            p3.position.copy(p1.position).add(dir13.clone().multiplyScalar(newLength));
+
+            const newMidPoint = new THREE.Vector3().addVectors(p1.position, p3.position).multiplyScalar(0.5);
+            const upVector = new THREE.Vector3(0, 1, 0).projectOnPlane(dir13).normalize();
+            p2.position.copy(newMidPoint).add(upVector.multiplyScalar(currentAngleOffsetOffset));
+
+            if (p2.position.y < 0.3) p2.position.y = 0.3;
+            if (p3.position.y < 0.3) p3.position.y = 0.3;
+
+            updateTube();
+        }
+
+        function updateTube() {
+            if (controlPoints.length < 2) return;
+            const points = controlPoints.map(mesh => mesh.position);
+
+            tubeLineCurve = new THREE.CatmullRomCurve3(points);
+            tubeLineCurve.curveType = 'centripetal'; 
+
+            if (tubeMesh) scene.remove(tubeMesh);
+
+            const tubeGeometry = new THREE.TubeGeometry(tubeLineCurve, 100, 0.45, 24, false);
+            const tubeMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.45,
+                roughness: 0.05,
+                metalness: 0.1,
+                transmission: 0.9, 
+                ior: 1.5,          
+                side: THREE.DoubleSide,
+                depthWrite: true
+            });
+
+            tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
+            tubeMesh.castShadow = true;
+            tubeMesh.receiveShadow = true;
+            
+            tubeMesh.visible = tubeVisibleState;
+            scene.add(tubeMesh);
+        }
+
+        function addTubeSegment() {
+            transformControls.detach(); 
+
+            const p3 = controlPoints[controlPoints.length - 1];
+            const lastPos = p3.position.clone();
+            
+            const newP2_pos = lastPos.clone().add(new THREE.Vector3(4, -1, 2));
+            const newP3_pos = lastPos.clone().add(new THREE.Vector3(8, -2, 0));
+
+            controlPoints.forEach(p => p.material.color.setHex(0xff2222));
+
+            const p2_new = createControlPoint(newP2_pos, "新增段落第二點");
+            const p3_new = createControlPoint(newP3_pos, "新增段落第三點");
+
+            controlPoints.push(p2_new, p3_new);
+            currentAngleOffsetOffset = 0; 
+
+            const p1_base = controlPoints[0];
+            const newTotalLen = p1_base.position.distanceTo(p3_new.position);
+            document.getElementById('slider-tube-length').value = newTotalLen.toFixed(1);
+            document.getElementById('val-tube-length').innerText = newTotalLen.toFixed(1) + "m";
+
+            updateTube();
+
+            transformControls.attach(p3_new);
+            p3_new.material.color.setHex(0xffcd00);
+            
+            setPipeEditMode('single');
+        }
+
+        // --- 滾球重力模擬與動態螢光軌跡機制 ---
+
+        function initPhysicsBall() {
+            if (physicsBall) scene.remove(physicsBall);
+            clearTrail(); 
+
+            const geometry = new THREE.SphereGeometry(0.32, 32, 32);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xffd700, 
+                roughness: 0.15,
+                metalness: 0.6
+            });
+            physicsBall = new THREE.Mesh(geometry, material);
+            physicsBall.castShadow = true;
+            scene.add(physicsBall);
+
+            ballProgress = 0;
+            ballVelocity = 0;
+            
+            const startPos = tubeLineCurve.getPointAt(0);
+            physicsBall.position.copy(startPos);
+            
+            // 隱藏底部通知
+            document.getElementById('bottom-message-toast').classList.remove('show');
+        }
+
+        function updateTrailGeometry() {
+            if (selectedTrailColor === 'none' || ballProgress <= 0.005) {
+                clearTrail();
+                return;
+            }
+
+            if (trailMesh) scene.remove(trailMesh);
+
+            const segmentsCount = Math.max(2, Math.floor(ballProgress * 100));
+            let trailPoints = [];
+            for (let i = 0; i <= segmentsCount; i++) {
+                const t = (i / segmentsCount) * ballProgress;
+                trailPoints.push(tubeLineCurve.getPointAt(t));
+            }
+
+            const trailCurve = new THREE.CatmullRomCurve3(trailPoints);
+            const trailGeo = new THREE.TubeGeometry(trailCurve, segmentsCount * 2, 0.36, 16, false);
+
+            let colorHex = 0xffffff;
+            if (selectedTrailColor === 'green') colorHex = 0x39ff14;
+            if (selectedTrailColor === 'blue') colorHex = 0x00f0ff;
+            if (selectedTrailColor === 'pink') colorHex = 0xff007f;
+            if (selectedTrailColor === 'yellow') colorHex = 0xffea00;
+
+            const trailMat = new THREE.MeshStandardMaterial({
+                color: colorHex,
+                emissive: colorHex,
+                emissiveIntensity: 1.8, 
+                transparent: true,
+                opacity: 0.75,
+                roughness: 0.2
+            });
+
+            trailMesh = new THREE.Mesh(trailGeo, trailMat);
+            scene.add(trailMesh);
+        }
+
+        function clearTrail() {
+            if (trailMesh) {
+                scene.remove(trailMesh);
+                trailMesh = null;
+            }
+        }
+
+        function updateBallPhysics(deltaTime) {
+            if (!isSimulating || !tubeLineCurve || !physicsBall) return;
+            if (deltaTime > 0.05) deltaTime = 0.05; 
+
+            const tangent = tubeLineCurve.getTangentAt(ballProgress).normalize();
+            const gravityY = -9.8;
+            const acceleration = tangent.y * gravityY;
+
+            const frictionObj = -ballVelocity * 0.03;
+            const totalAcc = acceleration + frictionObj;
+
+            ballVelocity += totalAcc * deltaTime;
+            const tubeLength = tubeLineCurve.getLength();
+            const deltaProgress = (ballVelocity * deltaTime) / tubeLength;
+            
+            ballProgress += deltaProgress;
+
+            if (ballProgress >= 1) {
+                ballProgress = 1;
+                ballVelocity = 0;
+                isSimulating = false;
+                if (isFollowingBall) toggleFollowBall(false); 
+                
+                // 需求 1：觸發底部自訂半透明跑馬燈訊息彈窗，取代原生 Alert
+                const toastText = document.getElementById('input-toast-text').value;
+                const toastEl = document.getElementById('bottom-message-toast');
+                toastEl.innerText = toastText;
+                toastEl.classList.add('show');
+
+                // 如果正在錄影，球到終點時自動停止並下載
+                if (isRecording) {
+                    stopRecordingCanvas();
+                }
+            } else if (ballProgress < 0) {
+                ballProgress = 0;
+                ballVelocity = 0;
+            }
+
+            const newPos = tubeLineCurve.getPointAt(ballProgress);
+            physicsBall.position.copy(newPos);
+
+            updateTrailGeometry();
+
+            if (isFollowingBall) {
+                orbitControls.target.copy(physicsBall.position);
+            }
+        }
+
+        function toggleFollowBall(forceState = null) {
+            isFollowingBall = (forceState !== null) ? forceState : !isFollowingBall;
+            const btn = document.getElementById('btn-follow-ball');
+            
+            if (isFollowingBall) {
+                btn.innerText = "鏡頭跟拍球：開啟";
+                btn.classList.add('toggle-active');
+            } else {
+                btn.innerText = "鏡頭跟拍球：關閉";
+                btn.classList.remove('toggle-active');
+                if (physicsBall) {
+                    orbitControls.target.copy(physicsBall.position);
+                }
+            }
+        }
+
+        // --- 需求 2：路徑多重存檔管理機制 ---
+        function saveCurrentPathArchive() {
+            const pointsData = controlPoints.map(p => ({
+                x: p.position.x,
+                y: p.position.y,
+                z: p.position.z
+            }));
+            
+            let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
+            const id = Date.now();
+            const name = `路徑存檔 #${archives.length + 1} (${new Date().toLocaleTimeString()})`;
+            
+            archives.push({ id, name, points: pointsData });
+            localStorage.setItem('tube_archives', JSON.stringify(archives));
+            
+            renderArchivesList();
+        }
+
+        function renderArchivesList() {
+            const container = document.getElementById('archive-list-container');
+            let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
+            
+            if (archives.length === 0) {
+                container.innerHTML = `<div style="font-size:10px; color:#666; padding:6px; text-align:center;">暫無歷史路徑存檔</div>`;
+                return;
+            }
+            
+            container.innerHTML = '';
+            archives.forEach(arc => {
+                const item = document.createElement('div');
+                item.className = 'archive-item';
+                item.innerHTML = `
+                    <span>${arc.name}</span>
+                    <button class="archive-load-btn" onclick="loadPathArchive(${arc.id})">載入</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        window.loadPathArchive = function(id) {
+            let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
+            const target = archives.find(a => a.id === id);
+            if (!target) return;
+            
+            // 清理現有的點
+            controlPoints.forEach(p => {
+                if(transformControls.object === p) transformControls.detach();
+                scene.remove(p);
+            });
+            
+            controlPoints = [];
+            target.points.forEach((pt, index) => {
+                const label = index === 0 ? "起始點" : (index === target.points.length - 1 ? "終點" : `節點${index}`);
+                const p = createControlPoint(new THREE.Vector3(pt.x, pt.y, pt.z), label);
+                controlPoints.push(p);
+            });
+            
+            // 重新判定並更新管道
+            updateTube();
+            // 配合隱藏/顯示狀態
+            controlPoints.forEach(p => p.visible = (currentMode === 'setup'));
+            
+            const toastEl = document.getElementById('bottom-message-toast');
+            toastEl.innerText = "成功載入歷史軌道路徑！";
+            toastEl.classList.add('show');
+            setTimeout(() => toastEl.classList.remove('show'), 2000);
+        };
+
+        // --- 需求 3：滾球實時錄影存成影片檔功能 ---
+        function startRecordingCanvas() {
+            recordedChunks = [];
+            const canvas = renderer.domElement;
+            
+            // 擷取畫布 Stream 幀率設為 30fps
+            const stream = canvas.captureStream(30);
+            
+            // 優先支援 WebM 高畫質編碼器
+            let options = { mimeType: 'video/webm;codecs=vp9' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'video/webm;codecs=vp8' };
+            }
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'video/webm' };
+            }
+
+            try {
+                mediaRecorder = new MediaRecorder(stream, options);
+            } catch (e) {
+                console.warn("不支援當前自訂錄影編碼，切換至預設格式");
+                mediaRecorder = new MediaRecorder(stream);
+            }
+
+            mediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = function() {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                
+                // 自動彈出下載影片檔
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `軟管滾球模擬錄影_${Date.now()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            
+            const btn = document.getElementById('btn-toggle-record');
+            btn.innerText = "🛑 正在錄影中 (球到終點自動下載)";
+            btn.classList.add('recording-active');
+        }
+
+        function stopRecordingCanvas() {
+            if (!isRecording || !mediaRecorder) return;
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            const btn = document.getElementById('btn-toggle-record');
+            btn.innerText = "🎥 啟動模擬錄影";
+            btn.classList.remove('recording-active');
+        }
+
+
+        // --- UI 面板與功能監聽事件管理 ---
+
+        function makePanelMovable() {
+            const panel = document.getElementById('movable-panel');
+            const handle = document.getElementById('panel-drag-handle');
+            
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+
+            handle.addEventListener('mousedown', dragStart, false);
+            handle.addEventListener('touchstart', dragStart, { passive: false });
+
+            function dragStart(e) {
+                if(e.target.id === 'btn-collapse' || e.target.id === 'btn-drop-ball') return;
+                
+                isDragging = true;
+                const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                
+                startX = clientX;
+                startY = clientY;
+                
+                const rect = panel.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
+
+                document.addEventListener('mousemove', dragMove, false);
+                document.addEventListener('mouseup', dragEnd, false);
+                document.addEventListener('touchmove', dragMove, { passive: false });
+                document.addEventListener('touchend', dragEnd, false);
+            }
+
+            function dragMove(e) {
+                if (!isDragging) return;
+                if (e.cancelable) e.preventDefault();
+                
+                const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+                
+                let newLeft = initialLeft + dx;
+                let newTop = initialTop + dy;
+                
+                newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - panel.offsetWidth));
+                newTop = Math.max(0, Math.min(newTop, window.innerHeight - panel.offsetHeight));
+                
+                panel.style.left = newLeft + 'px';
+                panel.style.top = newTop + 'px';
+            }
+
+            function dragEnd() {
+                isDragging = false;
+                document.removeEventListener('mousemove', dragMove);
+                document.removeEventListener('mouseup', dragEnd);
+                document.removeEventListener('touchmove', dragMove);
+                document.removeEventListener('touchend', dragEnd);
+            }
+        }
+
+        function setupUIEvents() {
+            const panel = document.getElementById('movable-panel');
+            const collapseBtn = document.getElementById('btn-collapse');
+            
+            collapseBtn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                panel.classList.toggle('collapsed');
+                collapseBtn.innerText = panel.classList.contains('collapsed') ? "展開 [+]" : "收合 [-]";
+            }, false);
+
+            document.getElementById('btn-mode-single').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                setPipeEditMode('single');
+            }, false);
+
+            document.getElementById('btn-mode-all').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                setPipeEditMode('all');
+            }, false);
+
+            const toggleTubeBtn = document.getElementById('btn-toggle-tube-visible');
+            toggleTubeBtn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                tubeVisibleState = !tubeVisibleState;
+                if (tubeMesh) tubeMesh.visible = tubeVisibleState;
+                
+                if (tubeVisibleState) {
+                    toggleTubeBtn.innerText = "顯示軟管";
+                    toggleTubeBtn.classList.add('active');
+                } else {
+                    toggleTubeBtn.innerText = "隱藏軟管";
+                    toggleTubeBtn.classList.remove('active');
+                }
+            }, false);
+
+            const trailSelect = document.getElementById('select-trail-color');
+            trailSelect.addEventListener('change', (e) => {
+                selectedTrailColor = trailSelect.value;
+                if (physicsBall && isSimulating) {
+                    updateTrailGeometry();
+                } else {
+                    clearTrail();
+                }
+            }, false);
+
+            // 儲存存檔按鈕
+            document.getElementById('btn-save-archive').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                saveCurrentPathArchive();
+            }, false);
+
+            // 錄影按鈕控制切換
+            document.getElementById('btn-toggle-record').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (!isRecording) {
+                    startRecordingCanvas();
+                } else {
+                    stopRecordingCanvas();
+                }
+            }, false);
+
+            const lengthSlider = document.getElementById('slider-tube-length');
+            const lengthValText = document.getElementById('val-tube-length');
+            
+            const onSliderInput = (e) => {
+                e.stopPropagation(); 
+                const val = parseFloat(lengthSlider.value);
+                lengthValText.innerText = val.toFixed(1) + "m";
+                handleTubeLengthSlider(val);
+            };
+            lengthSlider.addEventListener('input', onSliderInput, false);
+            lengthSlider.addEventListener('change', onSliderInput, false);
+
+            document.getElementById('btn-reset-view').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (isFollowingBall) toggleFollowBall(false); 
+                orbitControls.reset();
+                camera.position.set(initCamX, initCamY, initCamZ);
+                orbitControls.target.set(initTarX, initTarY, initTarZ);
+                orbitControls.update();
+            }, false);
+
+            document.getElementById('btn-add-segment').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                addTubeSegment();
+            }, false);
+
+            document.getElementById('btn-complete').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                transformControls.detach(); 
+                currentMode = 'simulate';
+                controlPoints.forEach(p => p.visible = false);
+
+                document.getElementById('mode-badge').innerText = "滾球模式";
+                document.getElementById('mode-badge').className = "status-badge simulate";
+                
+                document.getElementById('setup-instructions').classList.add('hidden');
+                document.getElementById('sim-instructions').classList.remove('hidden');
+
+                document.querySelectorAll('.setup-ctrl').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.sim-ctrl').forEach(el => el.classList.remove('hidden'));
+
+                document.getElementById('btn-drop-ball').classList.remove('hidden');
+
+                tubeVisibleState = true;
+                toggleTubeBtn.innerText = "顯示軟管";
+                toggleTubeBtn.classList.add('active');
+                if (tubeMesh) tubeMesh.visible = true;
+
+                initPhysicsBall();
+            }, false);
+
+            document.getElementById('btn-drop-ball').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                initPhysicsBall();
+                isSimulating = true;
+            }, false);
+
+            document.getElementById('btn-follow-ball').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                toggleFollowBall();
+            }, false);
+
+            document.getElementById('btn-rearrange').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                currentMode = 'setup';
+                isSimulating = false;
+                toggleFollowBall(false);
+                clearTrail();
+                stopRecordingCanvas();
+                
+                if (physicsBall) {
+                    scene.remove(physicsBall);
+                    physicsBall = null;
+                }
+
+                tubeVisibleState = true;
+                if (tubeMesh) tubeMesh.visible = true;
+                controlPoints.forEach(p => p.visible = true);
+                
+                document.getElementById('mode-badge').innerText = "佈置模式";
+                document.getElementById('mode-badge').className = "status-badge";
+                
+                document.getElementById('setup-instructions').classList.remove('hidden');
+                document.getElementById('sim-instructions').classList.add('hidden');
+
+                document.querySelectorAll('.setup-ctrl').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('.sim-ctrl').forEach(el => el.classList.add('hidden'));
+                
+                document.getElementById('btn-drop-ball').classList.add('hidden');
+                document.getElementById('bottom-message-toast').classList.remove('show');
+                
+                orbitControls.target.set(initTarX, initTarY, initTarZ);
+                orbitControls.update();
+                
+                setPipeEditMode('single');
+            }, false);
+
+            panel.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+            }, false);
+            
+            // 避免點選文字輸入框時導致 3D 控制器誤判
+            document.getElementById('input-toast-text').addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+            }, false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const deltaTime = clock.getDelta();
+
+            orbitControls.update();
+
+            if (currentMode === 'simulate') {
+                updateBallPhysics(deltaTime);
+            }
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
 
