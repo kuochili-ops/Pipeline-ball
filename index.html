@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D 透明軟管空間佈置模擬器 (動態防卡死重生版)</title>
+    <title>𓃥 白六3D訊息雲霄飛車 (全新路徑重建版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -55,7 +55,7 @@
         }
         
         .ui-panel.collapsed {
-            max-height: 52px; 
+            max-height: 54px; 
         }
 
         .panel-header {
@@ -66,26 +66,35 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            gap: 8px;
-            height: 52px;
+            gap: 6px;
+            height: 54px;
         }
 
         .panel-title-text {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: bold;
             color: #4dabf7;
             display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 2px;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .title-main-lbl {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
         }
 
         .header-btn-group {
             display: flex;
-            gap: 6px;
-            flex: 1;
-            justify-content: flex-end;
+            gap: 4px;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .toggle-collapse-btn {
@@ -96,14 +105,18 @@
             font-size: 11px;
             border-radius: 6px;
             cursor: pointer;
-            font-weight: bold; white-space: nowrap; height: 32px;
+            font-weight: bold; 
+            white-space: nowrap; 
+            height: 32px;
+            width: 58px; 
+            text-align: center;
         }
 
         .header-drop-ball-btn {
             background: #228be6;
             color: #fff;
             border: none;
-            padding: 6px 12px;
+            padding: 6px 10px;
             font-size: 11px;
             border-radius: 6px;
             cursor: pointer;
@@ -119,7 +132,7 @@
 
         .panel-content {
             padding: 12px 14px;
-            max-height: calc(95vh - 52px);
+            max-height: calc(95vh - 54px);
             overflow-y: auto;
         }
 
@@ -306,12 +319,13 @@
 
         .status-badge {
             display: inline-block;
-            padding: 2px 5px;
+            padding: 1px 4px;
             border-radius: 4px;
             font-size: 9px;
             font-weight: bold;
             background: #e67e22;
             color: white;
+            white-space: nowrap;
         }
         .status-badge.simulate { background: #2ecc71; }
 
@@ -368,12 +382,12 @@
     <div class="ui-panel" id="movable-panel">
         <div class="panel-header" id="panel-drag-handle">
             <div class="panel-title-text">
-                <span id="mode-badge" class="status-badge">佈置模式</span>
-                <span id="panel-title" style="margin-left:4px;">透明軟管</span>
+                <div><span id="mode-badge" class="status-badge">佈置模式</span></div>
+                <div class="title-main-lbl" id="panel-title">𓃥 白六3D訊息雲霄飛車</div>
             </div>
             
             <div class="header-btn-group">
-                <button class="header-drop-ball-btn hidden" id="btn-drop-ball">發射文字列車</button>
+                <button class="header-drop-ball-btn hidden" id="btn-drop-ball">發射</button>
                 <button class="toggle-collapse-btn" id="btn-collapse">收合 [-]</button>
             </div>
         </div>
@@ -381,18 +395,16 @@
         <div class="panel-content">
             <div id="setup-instructions" class="instructions">
                 <b>【3D 空間文字火車指南】</b><br>
-                * 已注入底層防卡死核心。鏡頭鎖定字串中心，無方塊背景立體字。
+                * 已新增「✨ 徹底清空，建立全新軌道」功能，可完全解鎖重建新路徑！
             </div>
 
             <div id="sim-instructions" class="instructions hidden">
-                * <b>⚡ 預設開啟字串「正中心點」跟拍！確保字列絕不飛出視野。</b><br>
-                * <b>到站後，仍可以手指自由擴張、捏合、滑動旋轉觀察 3D 空間。</b>
+                * <b>⚡ 預設開啟字串中心跟拍。可拉動下方字距滑桿隨時微調。</b>
             </div>
 
-            <!-- 文字訊息輸入欄位 -->
             <div class="custom-text-box setup-ctrl">
                 <div class="mode-box-title">輸入管道內滑行文字：</div>
-                <input type="text" id="input-toast-text" class="custom-text-input" value="TAIWAN 🚀 TRAIN">
+                <input type="text" id="input-toast-text" class="custom-text-input" value="早安星期一">
             </div>
 
             <div class="control-mode-box setup-ctrl" id="move-mode-section">
@@ -403,7 +415,17 @@
                 </div>
             </div>
 
-            <!-- 滾球模式專屬設定區 -->
+            <div class="sim-settings-box setup-ctrl">
+                <div class="mode-box-title" style="color: #4dabf7;">歷史路徑設定：</div>
+                <div class="setting-row">
+                    <span class="setting-label">儲存當前路徑：</span>
+                    <button id="btn-save-archive" class="mode-sub-btn" style="flex:none; width:130px; padding:4px; background:#2b8a3e; border-color:#2b8a3e; color:#fff;">儲存存檔</button>
+                </div>
+                <div class="archive-list-box" id="archive-list-container"></div>
+                
+                <button id="btn-clear-for-new" class="menu-btn danger" style="padding: 6px; font-size: 11px; margin-top: 8px; border-radius: 6px; font-weight: bold; background: #c92a2a;">✨ 徹底清空，建立全新軌道</button>
+            </div>
+
             <div class="sim-settings-box sim-ctrl hidden" id="sim-custom-settings">
                 <div class="setting-row">
                     <span class="setting-label">軟管可見度：</span>
@@ -419,12 +441,13 @@
                         <option value="yellow">炫目金黃 (Neon Yellow)</option>
                     </select>
                 </div>
-                <div style="border-top:1px solid #444; margin-top:8px; padding-top:8px;">
-                    <div class="setting-row">
-                        <span class="setting-label">目前軌道路徑：</span>
-                        <button id="btn-save-archive" class="mode-sub-btn" style="flex:none; width:130px; padding:4px; background:#2b8a3e; border-color:#2b8a3e; color:#fff;">儲存此路徑</button>
-                    </div>
-                    <div class="archive-list-box" id="archive-list-container"></div>
+            </div>
+
+            <div class="control-slider-box">
+                <div class="slider-title" style="color: #ffcd00;">微調文字列車字距 (防重疊)：</div>
+                <div class="slider-container">
+                    <input type="range" id="slider-char-spacing" min="0.005" max="0.045" step="0.001" value="0.016">
+                    <span class="slider-val" id="val-char-spacing">0.016</span>
                 </div>
             </div>
 
@@ -482,6 +505,8 @@
         let recordedChunks = [];
         let isRecording = false;
 
+        let globalCharSpacing = 0.016; 
+
         const initCamX = 0, initCamY = 14, initCamZ = 24;
         const initTarX = 0, initTarY = 3, initTarZ = 0;
 
@@ -503,17 +528,12 @@
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
             
-            // 防卡死核心：清除舊物件並重新綁定
             container.innerHTML = '';
             container.appendChild(renderer.domElement);
 
-            // 監聽 WebGL Context 遺失，並自動進行修復重生
             renderer.domElement.addEventListener("webglcontextlost", function(event) {
                 event.preventDefault();
-                console.warn('WebGL Context Lost! 啟動防卡死安全重啟機制...');
-                setTimeout(() => {
-                    init(); 
-                }, 100);
+                setTimeout(() => { init(); }, 100);
             }, false);
 
             window.addEventListener('contextmenu', e => e.preventDefault(), false);
@@ -585,7 +605,6 @@
             makePanelMovable(); 
             renderArchivesList(); 
 
-            // 強制著色器預熱，確保在移動端 100% 順暢渲染
             const dummyGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
             const dummyMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.01 });
             const dummyMesh = new THREE.Mesh(dummyGeo, dummyMat);
@@ -619,6 +638,7 @@
             const p3 = createControlPoint(new THREE.Vector3(6, 5.0, 0), "第三點");
 
             controlPoints = [p1, p2, p3];
+            currentAngleOffsetOffset = 0; 
             
             const initialLen = p1.position.distanceTo(p3.position);
             document.getElementById('slider-tube-length').value = initialLen.toFixed(1);
@@ -641,6 +661,19 @@
                 controlPoints.push(p);
             });
             
+            currentAngleOffsetOffset = 0; 
+            if (controlPoints.length >= 3) {
+                const p1 = controlPoints[0];
+                const p2 = controlPoints[1];
+                const p3 = controlPoints[2];
+                const midPoint13 = new THREE.Vector3().addVectors(p1.position, p3.position).multiplyScalar(0.5);
+                currentAngleOffsetOffset = p2.position.distanceTo(midPoint13);
+                
+                const currentLen = p1.position.distanceTo(p3.position);
+                document.getElementById('slider-tube-length').value = currentLen.toFixed(1);
+                document.getElementById('val-tube-length').innerText = currentLen.toFixed(1) + "m";
+            }
+
             updateTube();
             setPipeEditMode('single');
         }
@@ -690,7 +723,6 @@
                     p1.lastPosition.copy(p1.position);
 
                 } else if (targetObj === p2 && p2 && p3) {
-                    const line13 = new THREE.Vector3().subVectors(p3.position, p1.position);
                     const midPoint13 = new THREE.Vector3().addVectors(p1.position, p3.position).multiplyScalar(0.5);
                     currentAngleOffsetOffset = p2.position.distanceTo(midPoint13);
 
@@ -909,7 +941,6 @@
                 }
                 
                 carGroup.carIndex = index;
-                carGroup.trailOffset = index * 0.016; 
 
                 scene.add(carGroup);
                 trainCars.push(carGroup);
@@ -927,7 +958,7 @@
                 let headProgress = ballProgress;
                 if (headProgress > 1) headProgress = 1;
 
-                let currentCarProgress = headProgress - car.trailOffset;
+                let currentCarProgress = headProgress - (car.carIndex * globalCharSpacing);
                 
                 if (currentCarProgress < 0) currentCarProgress = 0;
                 if (currentCarProgress > 1) currentCarProgress = 1;
@@ -966,9 +997,8 @@
                 return;
             }
 
-            const lastCar = trainCars[trainCars.length - 1];
             let headProgress = ballProgress > 1 ? 1 : ballProgress;
-            const trailEndProgress = headProgress - lastCar.trailOffset;
+            const trailEndProgress = headProgress - ((trainCars.length - 1) * globalCharSpacing);
 
             if (trailEndProgress <= 0.005) {
                 clearTrail();
@@ -1052,7 +1082,6 @@
             updateTrainPhysicsPositions();
             updateTrailGeometry();
 
-            // 精確跟拍：鎖定整列字串所有車廂的平均幾何中心
             if (isFollowingBall && trainCars.length > 0) {
                 let validCarCount = 0;
                 const centerSum = new THREE.Vector3(0, 0, 0);
@@ -1211,7 +1240,7 @@
             handle.addEventListener('touchstart', dragStart, { passive: false });
 
             function dragStart(e) {
-                if(e.target.id === 'btn-collapse' || e.target.id === 'btn-drop-ball') return;
+                if(e.target.id === 'btn-collapse' || e.target.id === 'btn-drop-ball' || e.target.id === 'btn-clear-for-new') return;
                 
                 isDragging = true;
                 const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
@@ -1309,6 +1338,17 @@
                 saveCurrentPathArchive();
             }, false);
 
+            // 核心升級監聽：徹底清空建立新路徑
+            document.getElementById('btn-clear-for-new').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                initFirstTubePoints(); // 抹除並重建 3 個基礎起始節點
+                
+                const toastEl = document.getElementById('bottom-message-toast');
+                toastEl.innerText = "✨ 歷史路徑已清空，全新起點軌道建立完畢！";
+                toastEl.classList.add('show');
+                setTimeout(() => toastEl.classList.remove('show'), 2000);
+            }, false);
+
             document.getElementById('btn-toggle-record').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 if (!isRecording) {
@@ -1316,6 +1356,16 @@
                 } else {
                     stopRecordingCanvas();
                 }
+            }, false);
+
+            const spacingSlider = document.getElementById('slider-char-spacing');
+            const spacingValText = document.getElementById('val-char-spacing');
+            spacingSlider.addEventListener('input', (e) => {
+                e.stopPropagation();
+                globalCharSpacing = parseFloat(spacingSlider.value);
+                spacingValText.innerText = globalCharSpacing.toFixed(3);
+                updateTrainPhysicsPositions(); 
+                updateTrailGeometry();
             }, false);
 
             const lengthSlider = document.getElementById('slider-tube-length');
