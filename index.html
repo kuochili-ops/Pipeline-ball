@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>𓃥 白六3D訊息雲霄飛車 (全新路徑重建版)</title>
+    <title>𓃥 白六3D訊息雲霄飛車 (軌跡完美貼合版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -395,7 +395,7 @@
         <div class="panel-content">
             <div id="setup-instructions" class="instructions">
                 <b>【3D 空間文字火車指南】</b><br>
-                * 已新增「✨ 徹底清空，建立全新軌道」功能，可完全解鎖重建新路徑！
+                * 已修正！螢光軌跡起點完美退後，確保最後一個字不被截面遮擋。
             </div>
 
             <div id="sim-instructions" class="instructions hidden">
@@ -422,7 +422,6 @@
                     <button id="btn-save-archive" class="mode-sub-btn" style="flex:none; width:130px; padding:4px; background:#2b8a3e; border-color:#2b8a3e; color:#fff;">儲存存檔</button>
                 </div>
                 <div class="archive-list-box" id="archive-list-container"></div>
-                
                 <button id="btn-clear-for-new" class="menu-btn danger" style="padding: 6px; font-size: 11px; margin-top: 8px; border-radius: 6px; font-weight: bold; background: #c92a2a;">✨ 徹底清空，建立全新軌道</button>
             </div>
 
@@ -998,7 +997,13 @@
             }
 
             let headProgress = ballProgress > 1 ? 1 : ballProgress;
-            const trailEndProgress = headProgress - ((trainCars.length - 1) * globalCharSpacing);
+            
+            // 獲取最後一個字的進度位置
+            const lastCarIndex = trainCars.length - 1;
+            const lastCarProgress = headProgress - (lastCarIndex * globalCharSpacing);
+
+            // 核心修改點：讓螢光軌跡起點依據字體間距安全退後，完全貼在最後一個字的後面，不吞字
+            const trailEndProgress = lastCarProgress - (globalCharSpacing * 0.4);
 
             if (trailEndProgress <= 0.005) {
                 clearTrail();
@@ -1338,10 +1343,9 @@
                 saveCurrentPathArchive();
             }, false);
 
-            // 核心升級監聽：徹底清空建立新路徑
             document.getElementById('btn-clear-for-new').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
-                initFirstTubePoints(); // 抹除並重建 3 個基礎起始節點
+                initFirstTubePoints(); 
                 
                 const toastEl = document.getElementById('bottom-message-toast');
                 toastEl.innerText = "✨ 歷史路徑已清空，全新起點軌道建立完畢！";
