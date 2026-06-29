@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>𓃥 白六3D訊息雲霄飛車 (軌跡完美貼合版)</title>
+    <title>𓃥 白六3D訊息雲霄飛車 (數據網址分享版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -125,10 +125,6 @@
             height: 32px;
             box-shadow: 0 2px 6px rgba(34, 139, 230, 0.4);
         }
-        .header-drop-ball-btn:active {
-            background: #1c7ed6;
-            transform: scale(0.95);
-        }
 
         .panel-content {
             padding: 12px 14px;
@@ -213,16 +209,31 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 6px;
+            padding: 4px 6px;
             font-size: 11px;
             border-bottom: 1px solid #222;
+            gap: 4px;
         }
         .archive-item:last-child { border-bottom: none; }
+        .archive-btn-group {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
         .archive-load-btn {
             background: #228be6;
             border: none;
             color: white;
-            padding: 2px 8px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .archive-del-btn {
+            background: #c92a2a;
+            border: none;
+            color: white;
+            padding: 2px 6px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
@@ -255,7 +266,7 @@
         }
         .slider-val {
             font-size: 12px;
-            width: 45px;
+            width: 55px;
             text-align: right;
             font-family: monospace;
             color: #ffcd00;
@@ -285,6 +296,7 @@
         button.menu-btn.primary { background: #228be6; border-color: #228be6; font-weight: bold; }
         button.menu-btn.success { background: #2b8a3e; border-color: #2b8a3e; font-weight: bold; }
         button.menu-btn.danger { background: #c92a2a; border-color: #c92a2a; font-weight: bold; }
+        button.menu-btn.purple { background: #9c36b5; border-color: #9c36b5; font-weight: bold; color: #fff; }
         
         button.menu-btn.toggle-active {
             background: #e67e22;
@@ -300,7 +312,7 @@
             animation: pulse 1.5s infinite;
         }
         @keyframes pulse {
-            0% { opacity: 1; }
+            0 { opacity: 1; }
             50% { opacity: 0.6; }
             100% { opacity: 1; }
         }
@@ -394,8 +406,8 @@
         
         <div class="panel-content">
             <div id="setup-instructions" class="instructions">
-                <b>【3D 空間文字火車指南】</b><br>
-                * 已修正！螢光軌跡起點完美退後，確保最後一個字不被截面遮擋。
+                <b>【3D 空間網址共享指南】</b><br>
+                * 新增網址生成分享！接續軟管自動順應上一段走向，支援舊路徑刪除。
             </div>
 
             <div id="sim-instructions" class="instructions hidden">
@@ -416,13 +428,15 @@
             </div>
 
             <div class="sim-settings-box setup-ctrl">
-                <div class="mode-box-title" style="color: #4dabf7;">歷史路徑設定：</div>
+                <div class="mode-box-title" style="color: #4dabf7;">歷史路徑與外傳分享：</div>
                 <div class="setting-row">
                     <span class="setting-label">儲存當前路徑：</span>
                     <button id="btn-save-archive" class="mode-sub-btn" style="flex:none; width:130px; padding:4px; background:#2b8a3e; border-color:#2b8a3e; color:#fff;">儲存存檔</button>
                 </div>
                 <div class="archive-list-box" id="archive-list-container"></div>
-                <button id="btn-clear-for-new" class="menu-btn danger" style="padding: 6px; font-size: 11px; margin-top: 8px; border-radius: 6px; font-weight: bold; background: #c92a2a;">✨ 徹底清空，建立全新軌道</button>
+                
+                <button id="btn-share-url" class="menu-btn purple" style="padding: 10px; font-size: 12px; margin-top: 8px; border-radius: 8px;">🔗 打包路徑+設定：生成分享網址</button>
+                <button id="btn-clear-for-new" class="menu-btn danger" style="padding: 6px; font-size: 11px; margin-top: 6px; border-radius: 6px; font-weight: bold; background: #c92a2a;">✨ 徹底清空，建立全新軌道</button>
             </div>
 
             <div class="sim-settings-box sim-ctrl hidden" id="sim-custom-settings">
@@ -588,12 +602,15 @@
                 orbitControls.enabled = !event.value; 
             });
 
-            const archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
-            if (archives.length > 0) {
-                const lastSavedArchive = archives[archives.length - 1];
-                loadPathArchivePoints(lastSavedArchive);
-            } else {
-                initFirstTubePoints();
+            // 優先從網址 URL 解析分享數據，其次才是讀取本機 localStorage 快取
+            if (!tryLoadFromUrlQuery()) {
+                const archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
+                if (archives.length > 0) {
+                    const lastSavedArchive = archives[archives.length - 1];
+                    loadPathArchivePoints(lastSavedArchive);
+                } else {
+                    initFirstTubePoints();
+                }
             }
 
             renderer.domElement.removeEventListener('pointerdown', onPointerDown);
@@ -615,6 +632,51 @@
 
             setTimeout(forceViewReset, 100);
             setTimeout(forceViewReset, 300);
+        }
+
+        // 新增功能：從網址解碼分享設定
+        function tryLoadFromUrlQuery() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const dataParam = urlParams.get('data');
+                if (!dataParam) return false;
+
+                const decodedData = JSON.parse(atob(dataParam));
+                if (!decodedData || !decodedData.points) return false;
+
+                // 還原路徑點
+                controlPoints.forEach(p => {
+                    if(transformControls.object === p) transformControls.detach();
+                    scene.remove(p);
+                });
+                controlPoints = [];
+                decodedData.points.forEach((pt, index) => {
+                    const label = index === 0 ? "起始點" : (index === decodedData.points.length - 1 ? "終點" : `節點${index}`);
+                    const p = createControlPoint(new THREE.Vector3(pt.x, pt.y, pt.z), label);
+                    controlPoints.push(p);
+                });
+
+                // 還原相關參數
+                if (decodedData.text) document.getElementById('input-toast-text').value = decodedData.text;
+                if (decodedData.spacing) {
+                    globalCharSpacing = parseFloat(decodedData.spacing);
+                    document.getElementById('slider-char-spacing').value = globalCharSpacing;
+                    document.getElementById('val-char-spacing').innerText = globalCharSpacing.toFixed(3);
+                }
+
+                currentAngleOffsetOffset = 0;
+                if (controlPoints.length >= 3) {
+                    const p1 = controlPoints[0], p2 = controlPoints[1], p3 = controlPoints[2];
+                    const midPoint13 = new THREE.Vector3().addVectors(p1.position, p3.position).multiplyScalar(0.5);
+                    currentAngleOffsetOffset = p2.position.distanceTo(midPoint13);
+                }
+
+                showCenterToast("📬 成功還原外傳分享的 3D 訊息軌道！");
+                return true;
+            } catch (e) {
+                console.error("網址數據解碼出錯：", e);
+                return false;
+            }
         }
 
         function forceViewReset() {
@@ -829,19 +891,29 @@
             scene.add(tubeMesh);
         }
 
+        // 核心優化點：讓新軟管的延伸走向，自動順應上一段曲線尾端的方向（切線延伸）
         function addTubeSegment() {
             transformControls.detach(); 
 
-            const p3 = controlPoints[controlPoints.length - 1];
-            const lastPos = p3.position.clone();
+            const len = controlPoints.length;
+            const lastNode = controlPoints[len - 1];
+            const lastPos = lastNode.position.clone();
             
-            const newP2_pos = lastPos.clone().add(new THREE.Vector3(4, -1, 2));
-            const newP3_pos = lastPos.clone().add(new THREE.Vector3(8, -2, 0));
+            let extendDir = new THREE.Vector3(4, 0, 0); // 預設延伸方向
+            
+            if (tubeLineCurve) {
+                // 從現有曲線的末端（progress = 1.0）實時提取前進切線向量
+                extendDir = tubeLineCurve.getTangentAt(1.0).normalize().multiplyScalar(4);
+            }
+
+            // 依據前段走勢，流暢推移生成新的一組中間點與終點節點
+            const newP2_pos = lastPos.clone().add(extendDir);
+            const newP3_pos = lastPos.clone().add(extendDir.clone().multiplyScalar(2));
 
             controlPoints.forEach(p => p.material.color.setHex(0xff2222));
 
-            const p2_new = createControlPoint(newP2_pos, "新增段落第二點");
-            const p3_new = createControlPoint(newP3_pos, "新增段落第三點");
+            const p2_new = createControlPoint(newP2_pos, `新增段落第二點`);
+            const p3_new = createControlPoint(newP3_pos, `新增段落第三點`);
 
             controlPoints.push(p2_new, p3_new);
             currentAngleOffsetOffset = 0; 
@@ -998,11 +1070,8 @@
 
             let headProgress = ballProgress > 1 ? 1 : ballProgress;
             
-            // 獲取最後一個字的進度位置
             const lastCarIndex = trainCars.length - 1;
             const lastCarProgress = headProgress - (lastCarIndex * globalCharSpacing);
-
-            // 核心修改點：讓螢光軌跡起點依據字體間距安全退後，完全貼在最後一個字的後面，不吞字
             const trailEndProgress = lastCarProgress - (globalCharSpacing * 0.4);
 
             if (trailEndProgress <= 0.005) {
@@ -1131,7 +1200,7 @@
             
             let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
             const id = Date.now();
-            const name = `路徑存檔 #${archives.length + 1} (${new Date().toLocaleTimeString()})`;
+            const name = `路徑存檔 #${archives.length + 1}`;
             
             archives.push({ id, name, points: pointsData });
             localStorage.setItem('tube_archives', JSON.stringify(archives));
@@ -1139,6 +1208,7 @@
             renderArchivesList();
         }
 
+        // 核心優化點：歷史路徑清單全面改造，補上「刪除記錄」功能
         function renderArchivesList() {
             const container = document.getElementById('archive-list-container');
             let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
@@ -1153,12 +1223,24 @@
                 const item = document.createElement('div');
                 item.className = 'archive-item';
                 item.innerHTML = `
-                    <span>${arc.name}</span>
-                    <button class="archive-load-btn" onclick="loadPathArchive(${arc.id})">載入</button>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${arc.name}</span>
+                    <div class="archive-btn-group">
+                        <button class="archive-load-btn" onclick="loadPathArchive(${arc.id})">載入</button>
+                        <button class="archive-del-btn" onclick="deletePathArchive(${arc.id})">刪除</button>
+                    </div>
                 `;
                 container.appendChild(item);
             });
         }
+
+        // 新增功能：刪除指定存檔
+        window.deletePathArchive = function(id) {
+            let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
+            archives = archives.filter(a => a.id !== id);
+            localStorage.setItem('tube_archives', JSON.stringify(archives));
+            renderArchivesList();
+            showCenterToast("🗑️ 存檔路徑記錄已成功刪除！");
+        };
 
         window.loadPathArchive = function(id) {
             let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
@@ -1167,12 +1249,55 @@
             
             loadPathArchivePoints(target);
             controlPoints.forEach(p => p.visible = (currentMode === 'setup'));
-            
-            const toastEl = document.getElementById('bottom-message-toast');
-            toastEl.innerText = "成功載入歷史軌道路徑！";
-            toastEl.classList.add('show');
-            setTimeout(() => toastEl.classList.remove('show'), 2000);
+            showCenterToast("成功載入歷史軌道路徑！");
         };
+
+        // 新增功能：打包網址＋路徑數據數據，一鍵傳遞給收訊者
+        function generateAndCopyShareUrl() {
+            try {
+                const pointsData = controlPoints.map(p => ({
+                    x: p.position.x,
+                    y: p.position.y,
+                    z: p.position.z
+                }));
+
+                const sharePayload = {
+                    points: pointsData,
+                    text: document.getElementById('input-toast-text').value,
+                    spacing: globalCharSpacing
+                };
+
+                // 將數據壓縮編碼為 Base64 字串
+                const jsonString = JSON.stringify(sharePayload);
+                const b64Data = btoa(encodeURIComponent(jsonString).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+                    return String.fromCharCode('0x' + p1);
+                }));
+
+                // 拼裝出完整的 Web App 分享 URL 連結
+                const shareUrl = window.location.origin + window.location.pathname + '?data=' + b64Data;
+
+                // 實時自動複製到手機/電腦剪貼簿
+                const dummyInput = document.createElement('input');
+                document.body.appendChild(dummyInput);
+                dummyInput.value = shareUrl;
+                dummyInput.select();
+                dummyInput.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                document.body.removeChild(dummyInput);
+
+                showCenterToast("🔗 分享網址已自動複製！可直接傳給好友！");
+            } catch (err) {
+                console.error("生成分享網址出錯：", err);
+                alert("生成網址失敗，請確認是否在網頁環境下執行。");
+            }
+        }
+
+        function showCenterToast(msg) {
+            const toastEl = document.getElementById('bottom-message-toast');
+            toastEl.innerText = msg;
+            toastEl.classList.add('show');
+            setTimeout(() => toastEl.classList.remove('show'), 2500);
+        }
 
         function startRecordingCanvas() {
             recordedChunks = [];
@@ -1245,7 +1370,7 @@
             handle.addEventListener('touchstart', dragStart, { passive: false });
 
             function dragStart(e) {
-                if(e.target.id === 'btn-collapse' || e.target.id === 'btn-drop-ball' || e.target.id === 'btn-clear-for-new') return;
+                if(e.target.id === 'btn-collapse' || e.target.id === 'btn-drop-ball' || e.target.id === 'btn-clear-for-new' || e.target.id === 'btn-share-url') return;
                 
                 isDragging = true;
                 const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
@@ -1343,14 +1468,16 @@
                 saveCurrentPathArchive();
             }, false);
 
+            // 監聽：分享網址打包複製
+            document.getElementById('btn-share-url').addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                generateAndCopyShareUrl();
+            }, false);
+
             document.getElementById('btn-clear-for-new').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 initFirstTubePoints(); 
-                
-                const toastEl = document.getElementById('bottom-message-toast');
-                toastEl.innerText = "✨ 歷史路徑已清空，全新起點軌道建立完畢！";
-                toastEl.classList.add('show');
-                setTimeout(() => toastEl.classList.remove('show'), 2000);
+                showCenterToast("✨ 歷史路徑已清空，全新起點軌道建立完畢！");
             }, false);
 
             document.getElementById('btn-toggle-record').addEventListener('click', (e) => {
