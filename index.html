@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>𓃥 白六3D訊息雲霄飛車 (數據網址分享版)</title>
+    <title>𓃥 白六3D訊息雲霄飛車 (出發模式分享版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -312,7 +312,7 @@
             animation: pulse 1.5s infinite;
         }
         @keyframes pulse {
-            0 { opacity: 1; }
+            0% { opacity: 1; }
             50% { opacity: 0.6; }
             100% { opacity: 1; }
         }
@@ -406,13 +406,15 @@
         
         <div class="panel-content">
             <div id="setup-instructions" class="instructions">
-                <b>【3D 空間網址共享指南】</b><br>
-                * 新增網址生成分享！接續軟管自動順應上一段走向，支援舊路徑刪除。
+                <b>【3D 空間路徑規劃】</b><br>
+                * 移動節點平滑延伸，點擊下方「完成佈置」即可切換至出發模式並分享網址。
             </div>
 
             <div id="sim-instructions" class="instructions hidden">
-                * <b>⚡ 預設開啟字串中心跟拍。可拉動下方字距滑桿隨時微調。</b>
+                * <b>⚡ 預設開啟字串中心跟拍。點擊下方紫色分享鍵即可將訊息傳給他人！</b>
             </div>
+
+            <button id="btn-share-url" class="menu-btn purple sim-ctrl hidden" style="padding: 12px; font-size: 13px; margin-bottom: 12px; border-radius: 8px;">🔗 打包當前設定：生成分享網址</button>
 
             <div class="custom-text-box setup-ctrl">
                 <div class="mode-box-title">輸入管道內滑行文字：</div>
@@ -428,15 +430,13 @@
             </div>
 
             <div class="sim-settings-box setup-ctrl">
-                <div class="mode-box-title" style="color: #4dabf7;">歷史路徑與外傳分享：</div>
+                <div class="mode-box-title" style="color: #4dabf7;">歷史路徑本地紀錄：</div>
                 <div class="setting-row">
                     <span class="setting-label">儲存當前路徑：</span>
                     <button id="btn-save-archive" class="mode-sub-btn" style="flex:none; width:130px; padding:4px; background:#2b8a3e; border-color:#2b8a3e; color:#fff;">儲存存檔</button>
                 </div>
                 <div class="archive-list-box" id="archive-list-container"></div>
-                
-                <button id="btn-share-url" class="menu-btn purple" style="padding: 10px; font-size: 12px; margin-top: 8px; border-radius: 8px;">🔗 打包路徑+設定：生成分享網址</button>
-                <button id="btn-clear-for-new" class="menu-btn danger" style="padding: 6px; font-size: 11px; margin-top: 6px; border-radius: 6px; font-weight: bold; background: #c92a2a;">✨ 徹底清空，建立全新軌道</button>
+                <button id="btn-clear-for-new" class="menu-btn danger" style="padding: 6px; font-size: 11px; margin-top: 8px; border-radius: 6px; font-weight: bold; background: #c92a2a;">✨ 徹底清空，建立全新軌道</button>
             </div>
 
             <div class="sim-settings-box sim-ctrl hidden" id="sim-custom-settings">
@@ -602,7 +602,6 @@
                 orbitControls.enabled = !event.value; 
             });
 
-            // 優先從網址 URL 解析分享數據，其次才是讀取本機 localStorage 快取
             if (!tryLoadFromUrlQuery()) {
                 const archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
                 if (archives.length > 0) {
@@ -634,7 +633,6 @@
             setTimeout(forceViewReset, 300);
         }
 
-        // 新增功能：從網址解碼分享設定
         function tryLoadFromUrlQuery() {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -644,7 +642,6 @@
                 const decodedData = JSON.parse(atob(dataParam));
                 if (!decodedData || !decodedData.points) return false;
 
-                // 還原路徑點
                 controlPoints.forEach(p => {
                     if(transformControls.object === p) transformControls.detach();
                     scene.remove(p);
@@ -656,7 +653,6 @@
                     controlPoints.push(p);
                 });
 
-                // 還原相關參數
                 if (decodedData.text) document.getElementById('input-toast-text').value = decodedData.text;
                 if (decodedData.spacing) {
                     globalCharSpacing = parseFloat(decodedData.spacing);
@@ -671,7 +667,12 @@
                     currentAngleOffsetOffset = p2.position.distanceTo(midPoint13);
                 }
 
-                showCenterToast("📬 成功還原外傳分享的 3D 訊息軌道！");
+                // 分享開啟直接切換進入「出發模式」外觀狀態
+                setTimeout(() => {
+                    document.getElementById('btn-complete').click();
+                    showCenterToast("📬 成功載入分享訊息！已直接解鎖：出發模式！");
+                }, 400);
+
                 return true;
             } catch (e) {
                 console.error("網址數據解碼出錯：", e);
@@ -891,7 +892,6 @@
             scene.add(tubeMesh);
         }
 
-        // 核心優化點：讓新軟管的延伸走向，自動順應上一段曲線尾端的方向（切線延伸）
         function addTubeSegment() {
             transformControls.detach(); 
 
@@ -899,14 +899,11 @@
             const lastNode = controlPoints[len - 1];
             const lastPos = lastNode.position.clone();
             
-            let extendDir = new THREE.Vector3(4, 0, 0); // 預設延伸方向
-            
+            let extendDir = new THREE.Vector3(4, 0, 0); 
             if (tubeLineCurve) {
-                // 從現有曲線的末端（progress = 1.0）實時提取前進切線向量
                 extendDir = tubeLineCurve.getTangentAt(1.0).normalize().multiplyScalar(4);
             }
 
-            // 依據前段走勢，流暢推移生成新的一組中間點與終點節點
             const newP2_pos = lastPos.clone().add(extendDir);
             const newP3_pos = lastPos.clone().add(extendDir.clone().multiplyScalar(2));
 
@@ -1208,7 +1205,6 @@
             renderArchivesList();
         }
 
-        // 核心優化點：歷史路徑清單全面改造，補上「刪除記錄」功能
         function renderArchivesList() {
             const container = document.getElementById('archive-list-container');
             let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
@@ -1233,7 +1229,6 @@
             });
         }
 
-        // 新增功能：刪除指定存檔
         window.deletePathArchive = function(id) {
             let archives = JSON.parse(localStorage.getItem('tube_archives') || '[]');
             archives = archives.filter(a => a.id !== id);
@@ -1252,7 +1247,7 @@
             showCenterToast("成功載入歷史軌道路徑！");
         };
 
-        // 新增功能：打包網址＋路徑數據數據，一鍵傳遞給收訊者
+        // 打包分享網址（URL + 路徑坐標 + 當前文字與字距）
         function generateAndCopyShareUrl() {
             try {
                 const pointsData = controlPoints.map(p => ({
@@ -1267,16 +1262,13 @@
                     spacing: globalCharSpacing
                 };
 
-                // 將數據壓縮編碼為 Base64 字串
                 const jsonString = JSON.stringify(sharePayload);
                 const b64Data = btoa(encodeURIComponent(jsonString).replace(/%([0-9A-F]{2})/g, (match, p1) => {
                     return String.fromCharCode('0x' + p1);
                 }));
 
-                // 拼裝出完整的 Web App 分享 URL 連結
                 const shareUrl = window.location.origin + window.location.pathname + '?data=' + b64Data;
 
-                // 實時自動複製到手機/電腦剪貼簿
                 const dummyInput = document.createElement('input');
                 document.body.appendChild(dummyInput);
                 dummyInput.value = shareUrl;
@@ -1285,10 +1277,10 @@
                 document.execCommand('copy');
                 document.body.removeChild(dummyInput);
 
-                showCenterToast("🔗 分享網址已自動複製！可直接傳給好友！");
+                showCenterToast("🔗 3D雲霄飛車分享網址已複製！快去傳給好友吧！");
             } catch (err) {
                 console.error("生成分享網址出錯：", err);
-                alert("生成網址失敗，請確認是否在網頁環境下執行。");
+                alert("生成網址失敗。");
             }
         }
 
@@ -1296,7 +1288,7 @@
             const toastEl = document.getElementById('bottom-message-toast');
             toastEl.innerText = msg;
             toastEl.classList.add('show');
-            setTimeout(() => toastEl.classList.remove('show'), 2500);
+            setTimeout(() => { toastEl.classList.remove('show'); }, 2500);
         }
 
         function startRecordingCanvas() {
@@ -1468,7 +1460,7 @@
                 saveCurrentPathArchive();
             }, false);
 
-            // 監聽：分享網址打包複製
+            // 監聽：出發模式下的網址共享
             document.getElementById('btn-share-url').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 generateAndCopyShareUrl();
@@ -1525,13 +1517,15 @@
                 addTubeSegment();
             }, false);
 
+            // 進入出發模式選單
             document.getElementById('btn-complete').addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 transformControls.detach(); 
                 currentMode = 'simulate';
                 controlPoints.forEach(p => p.visible = false);
 
-                document.getElementById('mode-badge').innerText = "滾球模式";
+                // 改名為出發模式
+                document.getElementById('mode-badge').innerText = "出發模式";
                 document.getElementById('mode-badge').className = "status-badge simulate";
                 
                 document.getElementById('setup-instructions').classList.add('hidden');
